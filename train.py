@@ -260,6 +260,8 @@ def main() -> None:
         allow_extra_args=True,
     )
 
+    log_dir = Path("log")
+    log_dir.mkdir(parents=True, exist_ok=True)
     run: WandbRun | None = None
     if is_main:
         # Tags to make filtering easier. Some of them are a bit redundant, since you
@@ -281,6 +283,7 @@ def main() -> None:
             name=args.name,
             config=vars(args),
             tags=tags,
+            dir=str(log_dir.resolve()),
         )
         if isinstance(maybe_run, WandbRun):
             run = maybe_run
@@ -292,7 +295,7 @@ def main() -> None:
         model=model,
         optimiser=optimiser,
         processor=processor,
-        save_dir=Path("log") / args.name,
+        save_dir=log_dir / args.name,
         wandb=run,
         hardware=hardware_config,
         lr_scheduler=lr_scheduler,
