@@ -33,6 +33,16 @@ typeCheckingMode = "standard"
 reportPrivateImportUsage = false
 reportMatchNotExhaustive = true
 reportUnnecessaryComparison = true
+# These need to be ignored separately, even though they are already in gitignore.
+# Otherwise it tries to check all files in the virtual environment (.venv) or any
+# of these generated directories.
+exclude = [
+  "**/__pycache__",
+  ".ruff_cache/",
+  ".venv/",
+  "log/",
+  "unsloth_compiled_cache/",
+]
 
 [tool.ruff.lint]
 # Additionally include import sorting lints (and automatic formatting with --fix)
