@@ -1,5 +1,6 @@
-# Generated schemas
-/schemas
+/wandb
+# Stupid generated unsloth files
+/unsloth_compiled_cache
 
 # Python-generated files
 __pycache__/
