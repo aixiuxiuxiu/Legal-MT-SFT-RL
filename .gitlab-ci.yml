@@ -1,0 +1,49 @@
+image: python:3.12
+
+# Change pip's cache directory to be inside the project directory since we can
+# only cache local items.
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
+
+# https://pip.pypa.io/en/stable/topics/caching/
+cache:
+  key:
+    files:
+      # Cache is tied to the uv.lock, which is the lockfile for the dependencies,
+      # hence when the dependencies change, a different cache is used.
+      - uv.lock
+  paths:
+    - .cache/pip
+    - .cache/uv
+
+stages:
+  - Code Quality
+
+before_script:
+  - python -m pip install --upgrade uv
+
+  # Install dependencies (automatically creates venv)
+  - uv sync
+
+  # Prune the cache, optimised to be the most efficient for CI
+  # This only saves dependencies built from source, so it might
+  # not have a big effect, but storing the full cache is really
+  # slow, which would make it even faster without the cache.
+  - uv cache prune --ci
+
+
+basedpyright:
+  stage: Code Quality
+  script:
+    - uv run basedpyright .
+
+ruff-check:
+  stage: Code Quality
+  script:
+    - uv run ruff check --output-format=full .
+
+ruff-format:
+  stage: Code Quality
+  script:
+    - uv run ruff format --diff .

@@ -1,0 +1,43 @@
+[project]
+name = "vision-finetune"
+version = "0.1.0"
+description = "Fine-tuning Vision Language Models (VLMs)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "accelerate>=1.1.1",
+    "bitsandbytes>=0.44.1",
+    "hf-transfer>=0.1.8",
+    "peft>=0.13.2",
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "tqdm>=4.67.1",
+    "transformers>=4.46.3",
+    "triton>=3.1.0",
+    "trl>=0.12.1",
+    "unsloth",
+    "unsloth-zoo",
+    "wandb>=0.18.7",
+    "xformers>=0.0.28.post3",
+]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.22.0",
+    "debugpy>=1.8.9",
+    "ruff>=0.8.1",
+]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+reportPrivateImportUsage = false
+reportMatchNotExhaustive = true
+reportUnnecessaryComparison = true
+
+[tool.ruff.lint]
+# Additionally include import sorting lints (and automatic formatting with --fix)
+extend-select = ["I"]
+
+[tool.uv.sources]
+unsloth = { git = "https://github.com/unslothai/unsloth.git" }
+unsloth-zoo = { git = "https://github.com/unslothai/unsloth-zoo.git" }
