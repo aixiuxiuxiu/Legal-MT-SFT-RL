@@ -1,9 +1,18 @@
 import torch
+
+# Unsloth needs to be loaded first so that unsloth_zoo works correctly.
+# Great side effects... and without a real dependence in the first place.
+import unsloth
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from unsloth_zoo import vision_utils
 
 from .chat.processing import MessageBoundaries
 from .instruct import InstructSample
+
+assert unsloth.unsloth_zoo is not None, (
+    "Unsloth zoo was not loaded correctly. Probably not your fault, but just some "
+    "nonsense check from unsloth, as there is a lot of terrible library design."
+)
 
 
 class InstructCollator:
