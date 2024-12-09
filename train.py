@@ -268,9 +268,9 @@ def main() -> None:
         tags = [
             # For some reason pyright thinks it's a dict, but it's not and the config is
             # actually not subscriptable.
-            f"model:{model_config._name_or_path}",  # pyright: ignore[reportAttributeAccessIssue]
-            f"data:{args.data.resolve()}",
-            f"rank:{args.lora_rank}" * args.tags,
+            f"model:{model_config._name_or_path}",
+            f"rank:{args.lora_rank}",
+            *args.tags,
         ]
         # The run can be disabled, which returns a separate class.
         # In that case just set it to None, as there is no point in using it, so might
