@@ -72,8 +72,13 @@ class InstructSample:
             f"Sample `{path}` does not contain `question`, nor were any "
             "additonal question prompts given to be randomly selected"
         )
-        messages.append(ChatMessage.from_inputs([data["image"], question], role="user"))
-        messages.append(ChatMessage.from_inputs([data["answer"]], role="assistant"))
+        image_path = data.get("image")
+        assert image_path is not None,  f"Sample `{path}` does not contain `image`"
+        image = Image.open(path.parent / image_path)
+        messages.append(ChatMessage.from_inputs([image, question], role="user"))
+        answer = data.get("answer")
+        assert answer is not None,  f"Sample `{path}` does not contain `answer`"
+        messages.append(ChatMessage.from_inputs([answer], role="assistant"))
         return cls(messages=messages, info=dict(path=path))
 
     def as_chat(self) -> list[dict[str, str | list[dict[str, str]]]]:
