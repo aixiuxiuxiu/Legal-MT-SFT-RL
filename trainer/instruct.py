@@ -26,18 +26,19 @@ class InstructTrainer(BaseTrainer):
     def forward(self, batch: Batch) -> TrainOutput:
         inputs = batch.data.to(self.hardware.device)
         outputs = self.model(**inputs)
-        _, pred = torch.max(outputs.logits, dim=-1)
         # TODO: Ensure accuracy is calculated correctly
         # from debugger import breakpoint
         # breakpoint("Train Forward Predictions")
+        # _, pred = torch.max(outputs.logits, dim=-1)
         return TrainOutput(
             loss=outputs.loss,
             metrics=dict(
-                accuracy=TokenAccuracy.compute(
-                    pred,
-                    inputs["labels"],  # pyright: ignore[reportArgumentType]
-                    ignore_index=self.ignore_index,
-                )
+                # TODO: Wait of unsloth to fix the logits...
+                # accuracy=TokenAccuracy.compute(
+                #     pred,
+                #     inputs["labels"],  # pyright: ignore[reportArgumentType]
+                #     ignore_index=self.ignore_index,
+                # )
             ),
             info=batch.info,
         )
@@ -51,6 +52,8 @@ class InstructTrainer(BaseTrainer):
             max_new_tokens=self.max_new_tokens,
             pad_token_id=tokeniser.pad_token_id,
         )
+        from debugger import breakpoint
+        breakpoint("Train Forward Predictions")
         _, pred = torch.max(outputs.logits, dim=-1)
         return ValidationOutput(
             metrics=dict(

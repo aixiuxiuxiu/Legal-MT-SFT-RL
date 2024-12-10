@@ -3,9 +3,10 @@ import torch
 # Unsloth needs to be loaded first so that unsloth_zoo works correctly.
 # Great side effects... and without a real dependence in the first place.
 import unsloth
-from transformers import BatchEncoding, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 from unsloth_zoo import vision_utils
 
+from .batch import Batch
 from .chat.processing import MessageBoundaries
 from .instruct import InstructSample
 
@@ -38,7 +39,7 @@ class InstructCollator:
             else None
         )
 
-    def __call__(self, samples: list[InstructSample]) -> BatchEncoding:
+    def __call__(self, samples: list[InstructSample]) -> Batch:
         messages = [
             self.processor.apply_chat_template(
                 # HuggingFace got the type annotations wrong of the chat messages.
@@ -73,4 +74,13 @@ class InstructCollator:
         # At least all the examples I have seen would suggest that.
         batch["labels"] = labels
 
-        return batch
+        info = {}
+        for sample in samples:
+            for key, value in sample.info.items():
+                if key not in info:
+                    info[key] = []
+                info[key].append(value)
+        return Batch(
+            data=batch,
+            info=info,
+        )
