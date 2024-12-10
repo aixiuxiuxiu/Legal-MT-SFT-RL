@@ -26,6 +26,12 @@ class TrainConfig(ConfigEntry):
     validation_data: Path
     # Name or path of the pre-trained LLM to fine-tune
     model: str = field(alias="-m")
+    # Path to a JSON file with prompts that should be used to get variations.
+    # Mostly system prompts, but also questions for datasets where the same question
+    # would be used for all tasks, e.g. for classification.
+    # For validation, the first one in the list will always be used.
+    # Structure: {"system": [], "question": []}
+    prompts: Path | None = field(default=None, alias="-p")
     # Set a different padding token, as sometimes the one defined in the model
     # config may not work correctly, e.g. when it's the <eos> token, the model would
     # just never learn when to stop.

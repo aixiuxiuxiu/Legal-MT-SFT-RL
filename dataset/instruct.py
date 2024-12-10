@@ -6,11 +6,43 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self
 
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizerBase
 
 from .chat.messages import ChatMessage
+
+
+@dataclass
+class PromptSelection:
+    system: list[str] | None = None
+    question: list[str] | None = None
+    first_only: bool = False
+
+    @classmethod
+    def from_json(cls, path: str | os.PathLike, first_only: bool = False) -> Self:
+        with open(path, "r", encoding="utf-8") as fd:
+            data = json.load(fd)
+        return cls(
+            system=data.get("system"),
+            question=data.get("question"),
+            first_only=first_only,
+        )
+
+    def _random_selection(self, prompts: list[str] | None) -> str | None:
+        if prompts is None or len(prompts) == 0:
+            return None
+        if self.first_only:
+            return prompts[0]
+        index = int(torch.randint(len(prompts), size=(1,)))
+        return prompts[index]
+
+    def random_system_prompt(self) -> str | None:
+        return self._random_selection(self.system)
+
+    def random_question_prompt(self) -> str | None:
+        return self._random_selection(self.question)
 
 
 @dataclass
@@ -25,16 +57,22 @@ class InstructSample:
     info: dict = field(default_factory=lambda: {})
 
     @classmethod
-    def from_json(cls, path: str | os.PathLike) -> Self:
+    def from_json(
+        cls, path: str | os.PathLike, prompts: PromptSelection = PromptSelection()
+    ) -> Self:
         path = Path(path)
         with open(path, "r", encoding="utf-8") as fd:
             data = json.load(fd)
         messages = []
-        if system_message := data.get("system"):
-            messages.append(ChatMessage.from_inputs([system_message], role="system"))
-        messages.append(
-            ChatMessage.from_inputs([data["image"], data["question"]], role="user")
+        system = prompts.random_system_prompt() or data.get("system")
+        if system:
+            messages.append(ChatMessage.from_inputs([system], role="system"))
+        question = prompts.random_question_prompt() or data.get("question")
+        assert question is not None, (
+            f"Sample `{path}` does not contain `question`, nor were any "
+            "additonal question prompts given to be randomly selected"
         )
+        messages.append(ChatMessage.from_inputs([data["image"], question], role="user"))
         messages.append(ChatMessage.from_inputs([data["answer"]], role="assistant"))
         return cls(messages=messages, info=dict(path=path))
 
@@ -53,6 +91,8 @@ class InstructDataset(Dataset):
         self,
         path: str | os.PathLike,
         processor: PreTrainedTokenizerBase,
+        prompts: str | os.PathLike | None = None,
+        first_prompt_only: bool = False,
         ignore_index: int = -100,
     ):
         """
@@ -62,10 +102,18 @@ class InstructDataset(Dataset):
                 lists all the JSON files that should be used (must be relative to the
                 directory of the TSV file).
             processor (PreTrainedTokenizerBase): Processor of the model.
+            prompts (str | os.PathLike, optional): Path to a JSON file that contains
+                prompts for system/question, which will be randomly sampled to get some
+                variation in the data.
+                Structure of the JSON: {{"system": [], "question": []}}
+            first_prompt_only (bool): Whether to only use the first prompt from the
+                prompt selection. Helpful for the validation, so that the prompt remains
+                consistent. [Default: False]
             ignore_index (int): Label value that is ignored in the loss. [Default: -100]
         """
         self.path = Path(path)
         self.processor = processor
+        self.first_prompt_only = first_prompt_only
         self.ignore_index = ignore_index
         if self.path.is_dir():
             self.dir = self.path
@@ -79,9 +127,14 @@ class InstructDataset(Dataset):
             with open(self.path, "r", encoding="utf-8") as fd:
                 reader = csv.reader(fd, delimiter="\t")
                 self.files = [self.dir / line[0] for line in reader]
+        self.prompt_selection = (
+            PromptSelection.from_json(prompts, first_only=self.first_prompt_only)
+            if prompts
+            else PromptSelection(first_only=self.first_prompt_only)
+        )
 
     def __len__(self) -> int:
         return len(self.files)
 
     def __getitem__(self, i: int) -> InstructSample:
-        return InstructSample.from_json(self.files[i])
+        return InstructSample.from_json(self.files[i], prompts=self.prompt_selection)

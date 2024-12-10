@@ -62,6 +62,7 @@ def main() -> None:
     train_dataset = InstructDataset(
         cfg.train_data,
         processor=processor,
+        prompts=cfg.prompts,
     )
     train_collator = InstructCollator(processor=processor)
     train_sampler = (
@@ -88,6 +89,8 @@ def main() -> None:
     validation_dataset = InstructDataset(
         cfg.validation_data,
         processor=validation_processor,
+        prompts=cfg.prompts,
+        first_prompt_only=True,
     )
 
     validation_collator = InstructCollator(processor=validation_processor)
