@@ -1,8 +1,8 @@
 import copy
 import os
-import typing
-from argparse import ArgumentParser
 from pathlib import Path
+
+from config.train import TrainConfig
 
 # ruff: noqa: E402 (Disable import at top lint, because of this workaround)
 # unsloth hardcodes "cuda:0" in an attempt to disallow multi-GPU as they want to
@@ -17,7 +17,6 @@ if num_processes > 1:
 
 import torch
 import torch.distributed as dist
-import torch.multiprocessing as mp
 import torch.optim as optim
 import wandb
 from torch.nn.parallel import DistributedDataParallel
@@ -26,144 +25,13 @@ from wandb.sdk.wandb_run import Run as WandbRun
 
 from dataset import InstructDataset
 from dataset.collate import InstructCollator
-from lr_scheduler import create_lr_scheduler
 from model import vision
 from trainer import InstructTrainer
-from utils.hardware import HardwareConfig, MixedPrecisionChoice
-
-
-def parse_args():
-    parser = ArgumentParser(description="Fine-tune a Vision Language Model (VLM)")
-    parser.add_argument(
-        "--train-data",
-        dest="train_data",
-        type=Path,
-        required=True,
-        help=(
-            "Path to train dataset, either a directory with JSON files or a "
-            "TSV file listing the JSON files to use."
-        ),
-    )
-    parser.add_argument(
-        "--validation-data",
-        dest="validation_data",
-        type=Path,
-        required=True,
-        help=(
-            "Path to validation dataset, either a directory with JSON files or a "
-            "TSV file listing the JSON files to use."
-        ),
-    )
-    parser.add_argument(
-        "--name",
-        dest="name",
-        type=str,
-        required=True,
-        help="Name of the experiment for the logging and saved model",
-    )
-    parser.add_argument(
-        "-m",
-        "--model",
-        dest="model",
-        type=str,
-        required=True,
-        help="Name or path of the pre-trained LLM to fine-tune",
-    )
-    parser.add_argument(
-        "--pad-token",
-        dest="pad_token",
-        help=(
-            "Set the a different padding token, as sometimes the one defined in the "
-            "model config may not work correctly, e.g. when it's the <eos> token, the "
-            "model would just never learn when to stop."
-        ),
-    )
-    parser.add_argument(
-        "--split-model",
-        dest="split_model",
-        action="store_true",
-        help=(
-            "Split the model across available GPUs. Not allowed when launching "
-            "the training script distributed, as that would be conflicting."
-        ),
-    )
-    parser.add_argument(
-        "-l",
-        "--lr",
-        dest="lr",
-        type=float,
-        default=1e-4,
-        help="Learning rate for training",
-    )
-    parser.add_argument(
-        "-b",
-        "--batch-size",
-        dest="batch_size",
-        type=int,
-        default=8,
-        help="Batch size per GPU",
-    )
-    parser.add_argument(
-        "-n",
-        "--num-epochs",
-        dest="num_epochs",
-        type=int,
-        default=10,
-        help="Number of epochs",
-    )
-    parser.add_argument(
-        "--weight-decay",
-        dest="weight_decay",
-        type=float,
-        default=0.1,
-        help="Weight decay",
-    )
-    parser.add_argument(
-        "-r", "--rank", dest="lora_rank", type=int, default=16, help="Lora rank"
-    )
-    parser.add_argument(
-        "-a",
-        "--alpha",
-        dest="lora_alpha",
-        type=float,
-        help="Lora alpha scaling factor. [Default: 2·rank]",
-    )
-    parser.add_argument(
-        "--mixed-precision",
-        dest="mixed_precision",
-        type=str,
-        default="auto",
-        choices=typing.get_args(MixedPrecisionChoice),
-        help=(
-            "Type for mixed-precision. By default it will use auto, which will use "
-            "bf16 if the GPU supports it, and otherwise fallback to fp16. "
-            "To disable it, use none as the argument."
-        ),
-    )
-    parser.add_argument(
-        "--project",
-        dest="project",
-        type=str,
-        default="vision-finetune",
-        help="Name of the project for the logging [Default: vision-finetune]",
-    )
-    parser.add_argument(
-        "--tags",
-        dest="tags",
-        type=str,
-        default=[],
-        nargs="+",
-        help="Additional tags to add to the run in wandb",
-    )
-    parser.add_argument(
-        "--seed", dest="seed", type=int, default=1234, help="Random seed"
-    )
-    return parser.parse_args()
 
 
 def main() -> None:
-    args = parse_args()
-    torch.manual_seed(args.seed)
+    cfg = TrainConfig.parse_config()
+    torch.manual_seed(cfg.hardware.seed)
 
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -172,14 +40,14 @@ def main() -> None:
         dist.init_process_group(backend="nccl")
         is_main = dist.get_rank() == 0
 
-    hardware_config = HardwareConfig(mixed_precision=args.mixed_precision)
+    hardware_manager = cfg.hardware.create_manager()
 
     model, processor = vision.create_lora_model(
-        args.model,
-        rank=args.lora_rank,
-        alpha=args.lora_alpha if args.lora_alpha else 2 * args.lora_rank,
-        pad_token=args.pad_token,
-        device_map="auto" if args.split_model else None,
+        cfg.model,
+        rank=cfg.lora.rank,
+        alpha=cfg.lora.calculate_alpha(),
+        pad_token=cfg.pad_token,
+        device_map="auto" if cfg.hardware.split_model else None,
     )
     # Saving this to avoid having to unwrap the DDP model just to log its config.
     model_config = model.config
@@ -192,7 +60,7 @@ def main() -> None:
         )
 
     train_dataset = InstructDataset(
-        args.train_data,
+        cfg.train_data,
         processor=processor,
     )
     train_collator = InstructCollator(processor=processor)
@@ -203,22 +71,22 @@ def main() -> None:
     )
     train_data_loader = DataLoader(
         train_dataset,
-        batch_size=args.batch_size,
-        num_workers=mp.cpu_count() // num_processes,
+        batch_size=cfg.hardware.batch_size,
+        num_workers=cfg.hardware.calculate_num_workers(),
         # Only shuffle when not using a sampler
         shuffle=train_sampler is None,
         sampler=train_sampler,
-        pin_memory=hardware_config.is_cuda(),
+        pin_memory=hardware_manager.is_cuda(),
         # Keep workers alive after the epoch ends to avoid re-initialising them.
         # NOTE: If RAM becomes an issue, set this to false.
-        persistent_workers=True,
+        persistent_workers=cfg.hardware.has_persistent_workers(),
         collate_fn=train_collator,
     )
 
     validation_processor = copy.deepcopy(processor)
     validation_processor.padding_side = "left"
     validation_dataset = InstructDataset(
-        args.validation_data,
+        cfg.validation_data,
         processor=validation_processor,
     )
 
@@ -235,29 +103,28 @@ def main() -> None:
     )
     validation_data_loader = DataLoader(
         validation_dataset,
-        batch_size=args.batch_size,
-        num_workers=mp.cpu_count() // num_processes,
+        batch_size=cfg.hardware.batch_size,
+        num_workers=cfg.hardware.calculate_num_workers(),
         shuffle=False,
         sampler=validation_sampler,
-        pin_memory=hardware_config.is_cuda(),
+        pin_memory=hardware_manager.is_cuda(),
         # Keep workers alive after the epoch ends to avoid re-initialising them.
         # NOTE: If RAM becomes an issue, set this to false.
-        persistent_workers=True,
+        persistent_workers=cfg.hardware.has_persistent_workers(),
         collate_fn=validation_collator,
     )
 
-    optimiser = optim.AdamW(model.parameters(), lr=args.lr)
-    lr_scheduler = create_lr_scheduler(
-        "cos",
+    optimiser = optim.AdamW(
+        model.parameters(),
+        lr=cfg.lr.peak_lr,
+        betas=(0.9, cfg.optim.adam_beta2),
+        eps=cfg.optim.adam_eps,
+        weight_decay=cfg.optim.weight_decay,
+    )
+    lr_scheduler = cfg.lr.create_scheduler(
         optimiser,
-        peak_lr=args.lr,
-        # Warmup for 20% of the first epoch.
-        # TODO: Should probably be adapted to the size of the dataset
-        warmup_steps=len(train_data_loader) // 5,
-        total_steps=len(train_data_loader) * args.num_epochs,
-        end_lr=1e-8,
-        # To not crash when choosing schedulers that don't support all arguments.
-        allow_extra_args=True,
+        train_data_loader,
+        num_epochs=cfg.num_epochs,
     )
 
     log_dir = Path("log")
@@ -268,20 +135,18 @@ def main() -> None:
         # could just filter by the config values, but these are the most interseting
         # ones, so you also don't need to go through all the config values.
         tags = [
-            # For some reason pyright thinks it's a dict, but it's not and the config is
-            # actually not subscriptable.
             f"model:{model_config._name_or_path}",
-            f"rank:{args.lora_rank}",
-            *args.tags,
+            f"rank:{cfg.lora.rank}",
+            *cfg.tags,
         ]
         # The run can be disabled, which returns a separate class.
         # In that case just set it to None, as there is no point in using it, so might
         # as well continue without one.
         # Also slightly needed for the type checking as `RunDisabled` is annoying.
         maybe_run = wandb.init(
-            project=args.project,
-            name=args.name,
-            config=vars(args),
+            project=cfg.project,
+            name=cfg.get_name(),
+            config=cfg.to_dict(),
             tags=tags,
             dir=str(log_dir.resolve()),
         )
@@ -295,13 +160,13 @@ def main() -> None:
         model=model,
         optimiser=optimiser,
         processor=processor,
-        save_dir=log_dir / args.name,
+        save_dir=cfg.get_log_dir(base_dir=log_dir),
         wandb=run,
-        hardware=hardware_config,
+        hardware=hardware_manager,
         lr_scheduler=lr_scheduler,
         max_new_tokens=512,
         max_grad_norm=0.3,
-        num_epochs=args.num_epochs,
+        num_epochs=cfg.num_epochs,
     )
 
     trainer.train(

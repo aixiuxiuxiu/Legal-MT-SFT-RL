@@ -18,7 +18,7 @@ from debugger import breakpoint
 from dist import sync_dict_values
 from lr_scheduler import BaseLrScheduler
 from metric import restore_dict_of_metrics, summarise_list_of_metrics
-from utils.hardware import HardwareConfig
+from utils.hardware import HardwareManager
 
 from .result import (
     Example,
@@ -58,7 +58,7 @@ class BaseTrainer(ABC):
         optimiser: optim.Optimizer,
         processor: PreTrainedTokenizerBase,
         save_dir: str | os.PathLike,
-        hardware: HardwareConfig = HardwareConfig(),
+        hardware: HardwareManager = HardwareManager(),
         lr_scheduler: BaseLrScheduler | None = None,
         max_grad_norm: float = 1.0,
         num_epochs: int = 10,

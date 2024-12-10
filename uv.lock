@@ -750,7 +750,7 @@ name = "pandas"
 version = "2.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy" },
+    { name = "numpy", marker = "python_full_version >= '3.12'" },
     { name = "python-dateutil" },
     { name = "pytz" },
     { name = "tzdata" },
@@ -1250,6 +1250,19 @@ wheels = [
 ]
 
 [[package]]
+name = "simple-parsing"
+version = "0.1.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "docstring-parser" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/41/8b/7c7efbdc3eef7040b2d6219f966c68d3366f36947c93f8e12875a63bca00/simple_parsing-0.1.6.tar.gz", hash = "sha256:dad192e9633515a5627e343106636590a39a5ce85f6c47ced43507044ed98956", size = 97666 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f8/62/0194ea1d8245d76bfd2d5c6bebec7f824af00a6e03bec22697d12712fff0/simple_parsing-0.1.6-py3-none-any.whl", hash = "sha256:2a6e74b061fb754cc441559e8dcea9d108286d9e0ffaa9cca4eea6bbe85372e1", size = 112626 },
+]
+
+[[package]]
 name = "six"
 version = "1.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1325,9 +1338,9 @@ dependencies = [
     { name = "nvidia-nccl-cu12", marker = "platform_machine == 'x86_64' and platform_system == 'Linux'" },
     { name = "nvidia-nvjitlink-cu12", marker = "platform_machine == 'x86_64' and platform_system == 'Linux'" },
     { name = "nvidia-nvtx-cu12", marker = "platform_machine == 'x86_64' and platform_system == 'Linux'" },
-    { name = "setuptools" },
-    { name = "sympy" },
-    { name = "triton", marker = "python_full_version < '3.13' and platform_machine == 'x86_64' and platform_system == 'Linux'" },
+    { name = "setuptools", marker = "python_full_version >= '3.12'" },
+    { name = "sympy", marker = "python_full_version >= '3.12'" },
+    { name = "triton", marker = "python_full_version < '3.13' and platform_machine == 'x86_64' and platform_system == 'Linux' and python_full_version >= '3.12'" },
     { name = "typing-extensions" },
 ]
 wheels = [
@@ -1443,7 +1456,7 @@ dependencies = [
     { name = "rich" },
     { name = "shtab" },
     { name = "typeguard" },
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "python_full_version >= '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/95/b5/26138b141b8004e2539f2615366f436a0810331d7ac056561bfcd88bce60/tyro-0.9.2.tar.gz", hash = "sha256:692687e07c1ed35cc3a841e8c4a188424023f16bdef37f2d9c23cbeb8a3b51aa", size = 233981 }
 wheels = [
@@ -1508,6 +1521,7 @@ dependencies = [
     { name = "bitsandbytes" },
     { name = "hf-transfer" },
     { name = "peft" },
+    { name = "simple-parsing" },
     { name = "torch" },
     { name = "torchvision" },
     { name = "tqdm" },
@@ -1533,6 +1547,7 @@ requires-dist = [
     { name = "bitsandbytes", specifier = ">=0.44.1" },
     { name = "hf-transfer", specifier = ">=0.1.8" },
     { name = "peft", specifier = ">=0.13.2" },
+    { name = "simple-parsing", specifier = ">=0.1.6" },
     { name = "torch", specifier = ">=2.5.1" },
     { name = "torchvision", specifier = ">=0.20.1" },
     { name = "tqdm", specifier = ">=4.67.1" },
@@ -1561,7 +1576,7 @@ dependencies = [
     { name = "docker-pycreds" },
     { name = "gitpython" },
     { name = "platformdirs" },
-    { name = "protobuf" },
+    { name = "protobuf", marker = "python_full_version >= '3.12'" },
     { name = "psutil" },
     { name = "pydantic" },
     { name = "pyyaml" },

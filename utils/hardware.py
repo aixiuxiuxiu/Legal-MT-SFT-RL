@@ -15,7 +15,7 @@ def has_tensor_cores() -> bool:
     return major >= 7
 
 
-MixedPrecisionChoice = Literal["fp16", "bf16", "auto", "none"]
+type MixedPrecisionChoice = Literal["fp16", "bf16", "auto", "none"]
 
 
 def get_mixed_precision_dtype(
@@ -56,10 +56,10 @@ def get_best_device() -> torch.device:
         return torch.device("cpu")
 
 
-DeviceChoice = Literal["auto"] | torch.device
+type DeviceChoice = Literal["auto"] | torch.device | str
 
 
-class HardwareConfig:
+class HardwareManager:
     def __init__(
         self,
         device: DeviceChoice = "auto",
@@ -67,7 +67,7 @@ class HardwareConfig:
     ):
         self.device = get_best_device() if device == "auto" else torch.device(device)
         self.mixed_precision = get_mixed_precision_dtype(mixed_precision)
-        self.grad_scaler = self.mixed_precision and torch.amp.GradScaler(  # pyright: ignore[reportAttributeAccessIssue]
+        self.grad_scaler = self.mixed_precision and torch.amp.GradScaler(
             self.device.type
         )
 

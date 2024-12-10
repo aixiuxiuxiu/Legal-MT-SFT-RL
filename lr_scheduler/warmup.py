@@ -2,7 +2,7 @@ import math
 import typing
 from typing import Literal
 
-WarmupModes = Literal["cos", "exp", "linear"]
+type WarmupModes = Literal["cos", "exp", "linear"]
 
 
 class LRWarmup:
@@ -38,7 +38,9 @@ class LRWarmup:
         elif mode == "linear":
             self.calc_fn = self.linear
         else:
-            options = " | ".join([repr(m) for m in typing.get_args(WarmupModes)])
+            options = " | ".join(
+                [repr(m) for m in typing.get_args(WarmupModes.__value__)]
+            )
             raise ValueError(
                 f"`mode={mode!r}` not supported, must be one of: {options}"
             )

@@ -9,6 +9,7 @@ dependencies = [
     "bitsandbytes>=0.44.1",
     "hf-transfer>=0.1.8",
     "peft>=0.13.2",
+    "simple-parsing>=0.1.6",
     "torch>=2.5.1",
     "torchvision>=0.20.1",
     "tqdm>=4.67.1",
