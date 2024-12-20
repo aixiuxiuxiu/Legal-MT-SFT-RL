@@ -85,7 +85,7 @@ def main() -> None:
     )
 
     validation_processor = copy.deepcopy(processor)
-    validation_processor.tokenizer.padding_side = "left" # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+    validation_processor.tokenizer.padding_side = "left"  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
     validation_dataset = InstructDataset(
         cfg.validation_data,
         processor=validation_processor,
