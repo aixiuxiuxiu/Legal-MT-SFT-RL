@@ -1,7 +1,5 @@
-import torch
-
 from dataset.batch import Batch
-from metric import TokenAccuracy
+from metric import ClassificationAccuracy
 
 from .base import BaseTrainer
 from .result import TrainOutput, ValidationOutput
@@ -52,18 +50,24 @@ class InstructTrainer(BaseTrainer):
             max_new_tokens=self.max_new_tokens,
             pad_token_id=tokeniser.pad_token_id,
         )
-        from debugger import breakpoint
-        breakpoint("Train Forward Predictions")
-        _, pred = torch.max(outputs.logits, dim=-1)
+        preds = [
+            tokeniser.decode(out[input_ids.size(0) :], skip_special_tokens=True)
+            for input_ids, out in zip(inputs.input_ids, outputs)
+        ]
         return ValidationOutput(
             metrics=dict(
-                accuracy=TokenAccuracy.compute(
-                    pred,
-                    inputs["labels"],  # pyright: ignore[reportArgumentType]
-                    ignore_index=self.ignore_index,
-                )
+                class_accuracy=ClassificationAccuracy.compute(
+                    preds,
+                    batch.answers,
+                    ignore_case=False,
+                ),
+                class_accuracy_ignore_case=ClassificationAccuracy.compute(
+                    preds,
+                    batch.answers,
+                    ignore_case=True,
+                ),
             ),
-            pred=pred,
-            target=inputs["labels"],  # pyright: ignore[reportArgumentType]
+            preds=preds,
+            target=batch.answers,
             info=batch.info,
         )

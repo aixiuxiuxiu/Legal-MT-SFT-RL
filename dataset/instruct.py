@@ -54,6 +54,7 @@ class InstructSample:
     """
 
     messages: list[ChatMessage]
+    answer: str
     info: dict = field(default_factory=lambda: {})
 
     @classmethod
@@ -73,16 +74,21 @@ class InstructSample:
             "additonal question prompts given to be randomly selected"
         )
         image_path = data.get("image")
-        assert image_path is not None,  f"Sample `{path}` does not contain `image`"
+        assert image_path is not None, f"Sample `{path}` does not contain `image`"
         image = Image.open(path.parent / image_path)
         messages.append(ChatMessage.from_inputs([image, question], role="user"))
         answer = data.get("answer")
-        assert answer is not None,  f"Sample `{path}` does not contain `answer`"
-        messages.append(ChatMessage.from_inputs([answer], role="assistant"))
-        return cls(messages=messages, info=dict(path=path))
+        assert answer is not None, f"Sample `{path}` does not contain `answer`"
+        return cls(messages=messages, answer=answer, info=dict(path=path))
 
-    def as_chat(self) -> list[dict[str, str | list[dict[str, str]]]]:
-        return [msg.as_chat() for msg in self.messages]
+    def as_chat(
+        self, include_answer: bool = True
+    ) -> list[dict[str, str | list[dict[str, str]]]]:
+        messages = [msg.as_chat() for msg in self.messages]
+        if include_answer:
+            answer = ChatMessage.from_inputs([self.answer], role="assistant")
+            messages.append(answer.as_chat())
+        return messages
 
     def get_images(self) -> list[Image.Image]:
         images = []

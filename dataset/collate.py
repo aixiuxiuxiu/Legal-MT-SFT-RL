@@ -22,6 +22,7 @@ class InstructCollator:
         processor: PreTrainedTokenizerBase,
         ignore_index: int = -100,
         assistant_only: bool = True,
+        include_answer: bool = True,
     ):
         """
         Args:
@@ -29,6 +30,10 @@ class InstructCollator:
             ignore_index (int): Label value that is ignored in the loss. [Default: -100]
             assistant_only (bool): Whether only the assistant messages should be
                 included in the labels. [Default: True]
+            include_answer (bool): Whether the answer should be included. If it is not
+                included, a generation prompt will be added to the end, which is used
+                for inference / validation.
+                [Default: True]
         """
         self.processor = processor
         self.padding_token_ids = vision_utils.get_padding_tokens_ids(self.processor)
@@ -38,13 +43,15 @@ class InstructCollator:
             if assistant_only
             else None
         )
+        self.include_answer = include_answer
 
     def __call__(self, samples: list[InstructSample]) -> Batch:
         messages = [
             self.processor.apply_chat_template(
                 # HuggingFace got the type annotations wrong of the chat messages.
-                sample.as_chat(),  # pyright: ignore[reportArgumentType]
+                sample.as_chat(include_answer=self.include_answer),  # pyright: ignore[reportArgumentType]
                 tokenize=False,
+                add_generation_prompt=not self.include_answer,
             )
             for sample in samples
         ]
@@ -80,7 +87,9 @@ class InstructCollator:
                 if key not in info:
                     info[key] = []
                 info[key].append(value)
+
         return Batch(
             data=batch,
+            answers=[sample.answer for sample in samples],
             info=info,
         )

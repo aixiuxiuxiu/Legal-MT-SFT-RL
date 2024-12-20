@@ -60,6 +60,37 @@ class TokenAccuracy(BaseMetric):
         return self.value >= other.value
 
 
+@dataclass
+class ClassificationAccuracy(BaseMetric):
+    value: float
+
+    @classmethod
+    def compute(
+        cls,
+        preds: list[str],
+        target: list[str],
+        ignore_case: bool = False,
+    ) -> Self:
+        result = []
+        for pred, tar in zip(preds, target):
+            if ignore_case:
+                result.append(pred.lower() == tar.lower())
+            else:
+                result.append(pred == tar)
+
+        return cls(
+            value=torch.mean(torch.tensor(result), dtype=torch.float).item(),
+        )
+
+    def get_value(self) -> float:
+        return self.value
+
+    def is_better_than(self, other: Self | None) -> bool:
+        if other is None:
+            return True
+        return self.value >= other.value
+
+
 def summarise_metrics(metrics: dict[str, list[BaseMetric]]) -> dict[str, BaseMetric]:
     summary = {}
     for name, values in metrics.items():

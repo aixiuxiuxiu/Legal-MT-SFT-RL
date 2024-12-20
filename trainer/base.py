@@ -156,19 +156,16 @@ class BaseTrainer(ABC):
         )
 
     @torch.inference_mode()
-    def validation_epoch(
-        self, data_loader: DataLoader, epoch: int, name: str | None = None
-    ) -> ValidationResult:
+    def validation_epoch(self, data_loader: DataLoader, epoch: int) -> ValidationResult:
         torch.set_grad_enabled(False)
         self.model.eval()
         # This is needed, otherwise some kv-cache issues occur.
         FastVisionModel.for_inference(self.unwrap_model())
         num_replicas = set_sampler_epoch(data_loader, epoch=epoch)
 
-        val_text = f"Validation: {name}" if name else "Validation"
         metrics = []
         pbar = tqdm(
-            desc=self._epoch_text(epoch=epoch, desc=val_text),
+            desc=self._epoch_text(epoch=epoch, desc="Validation"),
             total=len(data_loader.dataset),  # pyright: ignore[reportArgumentType]
             leave=False,
             dynamic_ncols=True,
@@ -194,24 +191,17 @@ class BaseTrainer(ABC):
         # variables are always bound.
         examples = [
             Example(
-                path=path,
-                pred=self.processor.decode(
-                    pred,
-                    skip_special_tokens=True,
-                ),
-                target=self.processor.decode(
-                    target,
-                    skip_special_tokens=True,
-                ),
+                path=str(path),
+                pred=pred,
+                target=target,
             )
             for pred, target, path in zip(
-                output.pred,  # pyright: ignore[reportPossiblyUnboundVariable]
+                output.preds,  # pyright: ignore[reportPossiblyUnboundVariable]
                 output.target,  # pyright: ignore[reportPossiblyUnboundVariable]
                 output.info["path"],  # pyright: ignore[reportPossiblyUnboundVariable]
             )
         ]
         return ValidationResult(
-            name=name or "Validation",
             metrics=restore_dict_of_metrics(synced_metric, mean_metrics),
             examples=examples,
         )
@@ -269,7 +259,7 @@ class BaseTrainer(ABC):
         self,
         train_data_loader: DataLoader,
         validation_data_loader: DataLoader,
-        metric_name: str = "accuracy",
+        metric_name: str = "class_accuracy",
     ):
         best_metric = None
         for epoch in range(self.num_epochs):
@@ -310,8 +300,8 @@ class BaseTrainer(ABC):
                 self.wandb.log(
                     dict(
                         epoch=epoch + 1,
-                        train=train_result.to_dict(),
-                        validation=validation_result.to_dict(),
+                        train=train_result.to_log_dict(),
+                        validation=validation_result.to_log_dict(),
                     ),
                 )
         if self.wandb:

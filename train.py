@@ -85,7 +85,7 @@ def main() -> None:
     )
 
     validation_processor = copy.deepcopy(processor)
-    validation_processor.padding_side = "left"
+    validation_processor.tokenizer.padding_side = "left" # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
     validation_dataset = InstructDataset(
         cfg.validation_data,
         processor=validation_processor,
@@ -93,7 +93,9 @@ def main() -> None:
         first_prompt_only=True,
     )
 
-    validation_collator = InstructCollator(processor=validation_processor)
+    validation_collator = InstructCollator(
+        processor=validation_processor, include_answer=False
+    )
     validation_sampler = (
         DistributedSampler(
             validation_dataset,

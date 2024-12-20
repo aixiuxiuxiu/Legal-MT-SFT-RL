@@ -19,6 +19,10 @@ class TrainResult:
             metrics={name: metric.to_dict() for name, metric in self.metrics.items()},
         )
 
+    def to_log_dict(self) -> dict[str, float]:
+        metrics = {name: metric.get_value() for name, metric in self.metrics.items()}
+        return dict(loss=self.loss, lr=self.lr, **metrics)
+
 
 @dataclass
 class Example:
@@ -29,16 +33,17 @@ class Example:
 
 @dataclass
 class ValidationResult:
-    name: str
     metrics: dict[str, BaseMetric]
     examples: list[Example]
 
     def to_dict(self) -> dict:
         return dict(
-            name=self.name,
             metrics={name: metric.to_dict() for name, metric in self.metrics.items()},
             example=[asdict(ex) for ex in self.examples],
         )
+
+    def to_log_dict(self) -> dict[str, float]:
+        return {name: metric.get_value() for name, metric in self.metrics.items()}
 
 
 @dataclass
@@ -50,7 +55,7 @@ class TrainOutput:
 
 @dataclass
 class ValidationOutput:
-    pred: torch.Tensor
-    target: torch.Tensor
+    preds: list[str]
+    target: list[str]
     metrics: dict[str, BaseMetric]
     info: dict[str, list[Any]] = field(default_factory=lambda: {})
