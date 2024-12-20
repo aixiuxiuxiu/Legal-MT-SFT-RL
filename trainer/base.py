@@ -151,11 +151,11 @@ class BaseTrainer(ABC):
         result = sync_dict_values(result, device=self.hardware.device)
         return TrainResult(
             loss=result["loss"],
-            metrics=restore_dict_of_metrics(result["metrics"], mean_metrics),
+            metrics=restore_dict_of_metrics(result.get("metrics", {}), mean_metrics),
             lr=self.get_lr(),
         )
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def validation_epoch(self, data_loader: DataLoader, epoch: int) -> ValidationResult:
         torch.set_grad_enabled(False)
         self.model.eval()

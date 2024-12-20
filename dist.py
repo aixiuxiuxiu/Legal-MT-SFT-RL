@@ -65,7 +65,7 @@ def init(
     return device_id
 
 
-@torch.inference_mode()
+@torch.no_grad()
 def sync_tensor(tensor: torch.Tensor, reduction: str | None = "mean") -> torch.Tensor:
     """
     Synchronises the tensor across all processes.

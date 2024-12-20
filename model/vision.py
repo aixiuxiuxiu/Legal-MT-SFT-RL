@@ -11,7 +11,7 @@ def create_lora_model(
     name_or_path: str | os.PathLike,
     rank: int = 16,
     alpha: int = 32,
-    freeze_vit: bool = False,
+    freeze_vit: bool = True,
     freeze_llm: bool = False,
     pad_token: str | None = None,
     device_map: dict | str | None = None,
@@ -25,7 +25,7 @@ def create_lora_model(
         rank (int): LoRA rank [Default: 16]
         alpha (int): LoRA scaling factor, recommended α = 2·r [Default: 32]
         freeze_vit (bool): Whether to freeze the Vision Transformer (ViT)
-            [Default: False]
+            [Default: True]
         freeze_llm (bool): Whether to freeze the Language Model (LLM).
             [Default: False]
         pad_token (str, optional): Set the pad token to the given token. Might be
@@ -40,6 +40,10 @@ def create_lora_model(
         model (PeftModel): Pre-trained VLM with LORA adapters.
         processor (PreTrainedTokenizerBase): Processor of the model (image / tokeniser).
     """
+    assert freeze_vit, (
+        "Unsloth is currently broken for vision fine-tuning. "
+        "Hence freeze_vit=True is required"
+    )
     model, processor = FastVisionModel.from_pretrained(
         str(name_or_path),
         load_in_4bit=True,
