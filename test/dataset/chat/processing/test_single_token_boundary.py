@@ -123,26 +123,26 @@ class SingleTokenBoundary:
         )
 
 
-def test_mask_single_token_empty_message():
+def test_mask_empty_message():
     SingleTokenBoundary.validate_messages_matrix(max_len=0)
 
 
-def test_mask_single_token_no_message():
+def test_mask_no_message():
     SingleTokenBoundary.validate_messages_matrix(num_messages=0)
 
 
-def test_mask_single_token_no_boundaries():
+def test_mask_no_boundaries():
     boundary = SingleTokenBoundary.single_message(boundaries=False)
     boundary.validate(include_start=True, include_end=True)
     assert not torch.any(boundary.expected)
 
 
-def test_mask_single_token_messages():
+def test_mask_messages():
     for i in range(5):
         SingleTokenBoundary.validate_messages_matrix(num_messages=i)
 
 
-def test_mask_single_token_messages_interleaved():
+def test_mask_messages_interleaved():
     for i in range(5):
         for nth in range(1, 6):
             SingleTokenBoundary.validate_messages_matrix(
