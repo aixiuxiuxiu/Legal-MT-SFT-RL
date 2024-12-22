@@ -19,6 +19,7 @@ cache:
 
 stages:
   - Code Quality
+  - Testing
 
 before_script:
   - python -m pip install --upgrade uv
@@ -47,3 +48,8 @@ ruff-format:
   stage: Code Quality
   script:
     - uv run ruff format --diff .
+
+pytest:
+  stage: Testing
+  script:
+    - uv run pytest -v

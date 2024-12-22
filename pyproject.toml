@@ -26,6 +26,7 @@ dependencies = [
 dev = [
     "basedpyright>=1.22.0",
     "debugpy>=1.8.9",
+    "pytest>=8.3.4",
     "ruff>=0.8.1",
 ]
 
@@ -45,6 +46,9 @@ exclude = [
   "log/",
   "unsloth_compiled_cache/",
 ]
+
+[tool.pytest.ini_options]
+testpaths = "test"
 
 [tool.ruff.lint]
 # Additionally include import sorting lints (and automatic formatting with --fix)
