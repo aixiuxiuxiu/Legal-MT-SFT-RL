@@ -177,6 +177,10 @@ class MessageBoundaries:
         starts = self._find_sequence_matches(input, self.start)
         ends = self._find_sequence_matches(input, self.end)
 
+        # No match possible as either side of the boundary was missing.
+        if starts.numel() == 0 or ends.numel() == 0:
+            return mask
+
         # The end of start need to be matched with the beginning of the end, as they
         # are given as a range of [begin, end] (2nd dimension).
         ends_first = ends[:, 0]
@@ -188,7 +192,7 @@ class MessageBoundaries:
             # And the last index needs of the end needs to come after the start.
             end_candidates = torch.all(
                 ends_first[:, :-1] == start_last[:-1], dim=-1
-            ) & (ends_first[:, -1] > start_last[-1])
+            ) & (ends_first[:, -1] >= start_last[-1])
             if torch.sum(end_candidates) == 0:
                 # No end match that could close the start, therefore it should be
                 # everything until the end.
