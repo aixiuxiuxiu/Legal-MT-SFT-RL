@@ -39,6 +39,8 @@ class MessageBoundaries:
         With that approach, each new addition, the tokens for the start and end can be
         identified.
 
+        Note: Pixtral does not work with this approach.
+
         Args:
             processor (PreTrainedTokenizerBase): Processor / tokeniser of the model
         """
@@ -86,7 +88,7 @@ class MessageBoundaries:
         # Remove the trailing whitespace of the end, as there is often a new line at the
         # end, that would only be there if there were another message, as the generation
         # stops before that.
-        end = tokeniser.encode(tokeniser.decode(end).rstrip())
+        end = tokeniser.encode(tokeniser.decode(end).rstrip(), add_special_tokens=False)
 
         instance = cls(
             start=torch.tensor(start),
