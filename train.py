@@ -183,6 +183,9 @@ def main() -> None:
         # Shouldn't be necessary, but just in case.
         run.finish()
 
+    if num_processes > 1:
+        dist.destroy_process_group()
+
 
 if __name__ == "__main__":
     main()
