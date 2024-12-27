@@ -21,6 +21,7 @@ from metric import (
     Metric,
     MetricTracker,
 )
+from metric.table import table_from_metrics
 from utils import nested_dict
 from utils.hardware import HardwareManager
 
@@ -272,16 +273,19 @@ class BaseTrainer(ABC):
         with self.progress:
             for epoch in range(self.num_epochs):
                 train_result = self.train_epoch(train_data_loader, epoch=epoch)
-                # TODO: Prettify
-                self.console.print(f"## Train - Epoch {epoch + 1}")
-                self.console.print(train_result)
 
                 validation_result = self.validation_epoch(
                     validation_data_loader, epoch=epoch
                 )
-                # TODO: Prettify
-                self.console.print(f"## Validation - Epoch {epoch + 1}")
-                self.console.print(validation_result.metrics)
+
+                table = table_from_metrics(
+                    train=train_result,
+                    validation=validation_result,
+                    metrics=self.metrics,
+                    title=f"Epoch {epoch + 1}",
+                    lr_scheduler=self.lr_scheduler,
+                )
+                self.console.print(table)
 
                 self.save_pretrained("latest")
                 current_metric = nested_dict.get_recursive(
