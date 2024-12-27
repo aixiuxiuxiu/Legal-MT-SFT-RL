@@ -101,6 +101,7 @@ class TrainerProgress:
     def end_epoch(self):
         self.epoch += 1
         self.pbar.advance(self.total)
+        self.pbar.update(self.total, prefix=self._get_prefix("total"))
 
     def start(self, name: TaskName, total: int, reset: bool = True):
         task = self._get_task(name)
