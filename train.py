@@ -19,6 +19,7 @@ import torch
 import torch.distributed as dist
 import torch.optim as optim
 import wandb
+from rich.console import Console
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, DistributedSampler
 from wandb.sdk.wandb_run import Run as WandbRun
@@ -167,6 +168,8 @@ def main() -> None:
         processor=processor,
         save_dir=cfg.get_log_dir(base_dir=log_dir),
         wandb=run,
+        # Suppress the output of other processes
+        console=Console(quiet=not is_main),
         hardware=hardware_manager,
         lr_scheduler=lr_scheduler,
         max_new_tokens=512,

@@ -6,8 +6,8 @@ from typing import Self
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from rich.console import Console
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 from transformers import PreTrainedTokenizerBase
 from unsloth import FastVisionModel
 from wandb import Table
@@ -20,6 +20,7 @@ from lr_scheduler import BaseLrScheduler
 from metric import restore_dict_of_metrics, summarise_list_of_metrics
 from utils.hardware import HardwareManager
 
+from .progress import TrainerProgress
 from .result import (
     Example,
     TrainOutput,
@@ -63,6 +64,7 @@ class BaseTrainer(ABC):
         max_grad_norm: float = 1.0,
         num_epochs: int = 10,
         wandb: WandbRun | None = None,
+        console: Console = Console(),
     ):
         self.model = model
         self.optimiser = optimiser
@@ -73,6 +75,8 @@ class BaseTrainer(ABC):
         self.max_grad_norm = max_grad_norm
         self.num_epochs = num_epochs
         self.wandb = wandb
+        self.console = console
+        self.progress = TrainerProgress(num_epochs=num_epochs, console=console)
         self.example_table = Table(columns=["epoch", "path", "pred", "target"])
 
     # Unwraps a model to the core model, which can be across multiple layers with
@@ -125,11 +129,9 @@ class BaseTrainer(ABC):
 
         losses = []
         metrics = []
-        pbar = tqdm(
-            desc=self._epoch_text(epoch=epoch, desc="Train"),
+        self.progress.start(
+            "train",
             total=len(data_loader.dataset),  # pyright: ignore[reportArgumentType]
-            leave=False,
-            dynamic_ncols=True,
         )
         for batch in data_loader:
             # The last batch may not be a full batch
@@ -139,8 +141,8 @@ class BaseTrainer(ABC):
             losses.append(output.loss.item())
             self.backward(output.loss)
             metrics.append(output.metrics)
-            pbar.update(curr_batch_size * num_replicas)
-        pbar.close()
+            self.progress.advance("train", num=curr_batch_size * num_replicas)
+        self.progress.stop("train")
 
         mean_metrics = summarise_list_of_metrics(metrics)
         result = dict(
@@ -164,11 +166,9 @@ class BaseTrainer(ABC):
         num_replicas = set_sampler_epoch(data_loader, epoch=epoch)
 
         metrics = []
-        pbar = tqdm(
-            desc=self._epoch_text(epoch=epoch, desc="Validation"),
+        self.progress.start(
+            "validation",
             total=len(data_loader.dataset),  # pyright: ignore[reportArgumentType]
-            leave=False,
-            dynamic_ncols=True,
         )
         for batch in data_loader:
             # The last batch may not be a full batch
@@ -176,8 +176,8 @@ class BaseTrainer(ABC):
             with self.hardware.autocast():
                 output = self.predict(batch)
             metrics.append(output.metrics)
-            pbar.update(curr_batch_size * num_replicas)
-        pbar.close()
+            self.progress.advance("validation", num=curr_batch_size * num_replicas)
+        self.progress.stop("validation")
 
         mean_metrics = summarise_list_of_metrics(metrics)
         # Gather the metrics onto the primary process
@@ -262,50 +262,52 @@ class BaseTrainer(ABC):
         metric_name: str = "class_accuracy",
     ):
         best_metric = None
-        for epoch in range(self.num_epochs):
-            train_result = self.train_epoch(train_data_loader, epoch=epoch)
-            # TODO: Prettify
-            print(f"## Train - Epoch {epoch + 1}")
-            print(train_result)
+        with self.progress:
+            for epoch in range(self.num_epochs):
+                train_result = self.train_epoch(train_data_loader, epoch=epoch)
+                # TODO: Prettify
+                self.console.print(f"## Train - Epoch {epoch + 1}")
+                self.console.print(train_result)
 
-            validation_result = self.validation_epoch(
-                validation_data_loader, epoch=epoch
-            )
-            # TODO: Prettify
-            print(f"## Validation - Epoch {epoch + 1}")
-            print(validation_result.metrics)
-
-            self.save_pretrained("latest")
-            current_metric = validation_result.metrics[metric_name]
-            if current_metric.is_better_than(current_metric):
-                best_metric = current_metric
-                self.save_pretrained("best")
-                icon = "🔔"
-                print(
-                    f"{icon} New best checkpoint: Epoch {epoch + 1} — "
-                    f"{metric_name} = {best_metric.get_value():.5f} {icon}"
+                validation_result = self.validation_epoch(
+                    validation_data_loader, epoch=epoch
                 )
+                # TODO: Prettify
+                self.console.print(f"## Validation - Epoch {epoch + 1}")
+                self.console.print(validation_result.metrics)
 
-            if self.wandb:
-                for example in validation_result.examples:
-                    # Adding the row to the table, because only the most recent one is
-                    # shown in the wandb interface, but it should be easy to compare
-                    # them.
-                    self.example_table.add_data(
-                        epoch + 1,
-                        example.path,
-                        example.pred,
-                        example.target,
+                self.save_pretrained("latest")
+                current_metric = validation_result.metrics[metric_name]
+                if current_metric.is_better_than(current_metric):
+                    best_metric = current_metric
+                    self.save_pretrained("best")
+                    icon = "🔔"
+                    self.console.print(
+                        f"{icon} New best checkpoint: Epoch {epoch + 1} — "
+                        f"{metric_name} = {best_metric.get_value():.5f} {icon}"
                     )
-                self.wandb.log(
-                    dict(
-                        epoch=epoch + 1,
-                        train=train_result.to_log_dict(),
-                        validation=validation_result.to_log_dict(),
-                    ),
-                )
-        if self.wandb:
-            # Log the example over time in a table. wandb does not support updating the
-            # table at each epoch, but only a "summary", so the whole table needs to be
-            # logged at once.
-            self.wandb.log(dict(example=self.example_table))
+
+                if self.wandb:
+                    for example in validation_result.examples:
+                        # Adding the row to the table, because only the most recent one is
+                        # shown in the wandb interface, but it should be easy to compare
+                        # them.
+                        self.example_table.add_data(
+                            epoch + 1,
+                            example.path,
+                            example.pred,
+                            example.target,
+                        )
+                    self.wandb.log(
+                        dict(
+                            epoch=epoch + 1,
+                            train=train_result.to_log_dict(),
+                            validation=validation_result.to_log_dict(),
+                        ),
+                    )
+                self.progress.end_epoch()
+            if self.wandb:
+                # Log the example over time in a table. wandb does not support updating the
+                # table at each epoch, but only a "summary", so the whole table needs to be
+                # logged at once.
+                self.wandb.log(dict(example=self.example_table))
