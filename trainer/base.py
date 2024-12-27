@@ -17,7 +17,11 @@ from dataset.batch import Batch
 from debugger import breakpoint
 from dist import sync_dict_values
 from lr_scheduler import BaseLrScheduler
-from metric import restore_dict_of_metrics, summarise_list_of_metrics
+from metric import (
+    Metric,
+    MetricTracker,
+)
+from utils import nested_dict
 from utils.hardware import HardwareManager
 
 from .progress import TrainerProgress
@@ -59,6 +63,7 @@ class BaseTrainer(ABC):
         optimiser: optim.Optimizer,
         processor: PreTrainedTokenizerBase,
         save_dir: str | os.PathLike,
+        metrics: list[Metric],
         hardware: HardwareManager = HardwareManager(),
         lr_scheduler: BaseLrScheduler | None = None,
         max_grad_norm: float = 1.0,
@@ -74,10 +79,23 @@ class BaseTrainer(ABC):
         self.lr_scheduler = lr_scheduler
         self.max_grad_norm = max_grad_norm
         self.num_epochs = num_epochs
+        self.metrics = metrics
         self.wandb = wandb
         self.console = console
         self.progress = TrainerProgress(num_epochs=num_epochs, console=console)
         self.example_table = Table(columns=["epoch", "path", "pred", "target"])
+
+        best_metric = None
+        for metric in self.metrics:
+            if metric.when != "train":
+                best_metric = metric
+                break
+        if best_metric is None:
+            raise ValueError(
+                "No validation metric available to use as best metric "
+                f"given: metrics={self.metrics!r}."
+            )
+        self.best_metric = best_metric
 
     # Unwraps a model to the core model, which can be across multiple layers with
     # wrappers such as DistributedDataParallel.
@@ -127,8 +145,7 @@ class BaseTrainer(ABC):
         # But for the first step it needs to be done manually.
         self.optimiser.zero_grad()
 
-        losses = []
-        metrics = []
+        metrics = MetricTracker(self.metrics, when="train")
         self.progress.start(
             "train",
             total=len(data_loader.dataset),  # pyright: ignore[reportArgumentType]
@@ -138,23 +155,17 @@ class BaseTrainer(ABC):
             curr_batch_size = batch.data["input_ids"].size(0)
             with self.hardware.autocast():
                 output = self.forward(batch)
-            losses.append(output.loss.item())
             self.backward(output.loss)
             metrics.append(output.metrics)
             self.progress.advance("train", num=curr_batch_size * num_replicas)
         self.progress.stop("train")
 
-        mean_metrics = summarise_list_of_metrics(metrics)
-        result = dict(
-            loss=torch.mean(torch.tensor(losses)).item(),
-            metrics={name: metric.to_dict() for name, metric in mean_metrics.items()},
-        )
+        mean_metrics = metrics.mean()
         # Gather the metrics onto the primary process
-        result = sync_dict_values(result, device=self.hardware.device)
+        mean_metrics = sync_dict_values(mean_metrics, device=self.hardware.device)
         return TrainResult(
-            loss=result["loss"],
-            metrics=restore_dict_of_metrics(result.get("metrics", {}), mean_metrics),
             lr=self.get_lr(),
+            metrics=mean_metrics,
         )
 
     @torch.no_grad()
@@ -165,7 +176,7 @@ class BaseTrainer(ABC):
         FastVisionModel.for_inference(self.unwrap_model())
         num_replicas = set_sampler_epoch(data_loader, epoch=epoch)
 
-        metrics = []
+        metrics = MetricTracker(self.metrics, when="validation")
         self.progress.start(
             "validation",
             total=len(data_loader.dataset),  # pyright: ignore[reportArgumentType]
@@ -179,12 +190,9 @@ class BaseTrainer(ABC):
             self.progress.advance("validation", num=curr_batch_size * num_replicas)
         self.progress.stop("validation")
 
-        mean_metrics = summarise_list_of_metrics(metrics)
+        mean_metrics = metrics.mean()
         # Gather the metrics onto the primary process
-        synced_metric = sync_dict_values(
-            {name: metric.to_dict() for name, metric in mean_metrics.items()},
-            device=self.hardware.device,
-        )
+        mean_metrics = sync_dict_values(mean_metrics, device=self.hardware.device)
         # TODO: Adapt this to work for more general cases.
         # The type ignores are here because pyright cannot guarantee that the loop
         # is executed at least once. But we know that is always the case, so the
@@ -202,7 +210,7 @@ class BaseTrainer(ABC):
             )
         ]
         return ValidationResult(
-            metrics=restore_dict_of_metrics(synced_metric, mean_metrics),
+            metrics=mean_metrics,
             examples=examples,
         )
 
@@ -259,9 +267,8 @@ class BaseTrainer(ABC):
         self,
         train_data_loader: DataLoader,
         validation_data_loader: DataLoader,
-        metric_name: str = "class_accuracy",
     ):
-        best_metric = None
+        best_metric_value = None
         with self.progress:
             for epoch in range(self.num_epochs):
                 train_result = self.train_epoch(train_data_loader, epoch=epoch)
@@ -277,14 +284,21 @@ class BaseTrainer(ABC):
                 self.console.print(validation_result.metrics)
 
                 self.save_pretrained("latest")
-                current_metric = validation_result.metrics[metric_name]
-                if current_metric.is_better_than(current_metric):
-                    best_metric = current_metric
+                current_metric = nested_dict.get_recursive(
+                    validation_result.metrics, self.best_metric.key
+                )
+                if not isinstance(current_metric, (int, float)):
+                    raise KeyError(
+                        "Cannot get value of validation metric for "
+                        f"key={self.best_metric.key!r}, got {current_metric}."
+                    )
+                if self.best_metric.is_new_best(best_metric_value, current_metric):
+                    best_metric_value = current_metric
                     self.save_pretrained("best")
                     icon = "🔔"
                     self.console.print(
                         f"{icon} New best checkpoint: Epoch {epoch + 1} — "
-                        f"{metric_name} = {best_metric.get_value():.5f} {icon}"
+                        f"{self.best_metric.name} = {best_metric_value:.5f} {icon}"
                     )
 
                 if self.wandb:

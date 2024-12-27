@@ -5,6 +5,7 @@ import torch
 import torch.distributed as dist
 
 from utils import nested_dict
+from utils.nested_dict import NestedDict
 
 
 def is_dist() -> bool:
@@ -106,7 +107,7 @@ def sync_values(
     Synchronises a list of simple values (numbers) across all processes.
 
     Args:
-        values (List[float]): List of values to be synchronised.
+        values (list[float]): List of values to be synchronised.
         device (torch.device): Device on which the synchronised tensor should be placed.
         reduction (str): How to combine the results. When the reduction is
             "sum" or "mean" a single value will be created out of all the synchronised
@@ -114,7 +115,7 @@ def sync_values(
             given as a list.
 
     Returns:
-        out (List[float]): Synchronised values
+        out (list[float]): Synchronised values
     """
     if world_size() == 1:
         return values
@@ -123,14 +124,14 @@ def sync_values(
 
 
 def sync_dict_values(
-    d: dict, device: torch.device, reduction: str | None = "mean"
-) -> dict:
+    d: NestedDict[float], device: torch.device, reduction: str | None = "mean"
+) -> NestedDict[float]:
     """
     Synchronises a (nested) dictionary with simple values (numbers) across all
     processes.
 
     Args:
-        d (dict): Dictionary to be synchronised. It can be nested as long as
+        d (NestedDict[float]): Dictionary to be synchronised. It can be nested as long as
             all leaf values can be stored in a tensor.
         device (torch.device): Device on which the synchronised tensor should be placed.
         reduction (str): How to combine the results. When the reduction is
@@ -139,7 +140,7 @@ def sync_dict_values(
             given as a list.
 
     Returns:
-        out (dict): Synchronised dictionary
+        out (NestedDict[float]): Synchronised dictionary
     """
     if world_size() == 1:
         return d
@@ -147,7 +148,7 @@ def sync_dict_values(
     keys = sorted(nested_dict.nested_keys(d, keep_none=False))
     values: list = [nested_dict.get_recursive(d, k) for k in keys]
     values = sync_values(values, device=device, reduction=reduction)
-    out: dict = {}
+    out: NestedDict[float] = {}
     for k, v in zip(keys, values):
         nested_dict.set_recursive(out, k, v)
     return out

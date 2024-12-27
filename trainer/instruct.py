@@ -1,5 +1,6 @@
 from dataset.batch import Batch
-from metric import ClassificationAccuracy
+from metric.functional import classification_accuracy
+from metric.metrics import CLASS_ACCURACY, CLASS_ACCURACY_UNCASED, TRAIN_LOSS, Metric
 
 from .base import BaseTrainer
 from .result import TrainOutput, ValidationOutput
@@ -15,9 +16,10 @@ class InstructTrainer(BaseTrainer):
         *args,
         max_new_tokens: int | None = None,
         ignore_index: int = -100,
+        metrics: list[Metric] = [CLASS_ACCURACY, CLASS_ACCURACY_UNCASED, TRAIN_LOSS],
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(metrics=metrics, *args, **kwargs)
         self.max_new_tokens = max_new_tokens
         self.ignore_index = ignore_index
 
@@ -31,6 +33,7 @@ class InstructTrainer(BaseTrainer):
         return TrainOutput(
             loss=outputs.loss,
             metrics=dict(
+                loss=outputs.loss.item(),
                 # TODO: Wait of unsloth to fix the logits...
                 # accuracy=TokenAccuracy.compute(
                 #     pred,
@@ -56,16 +59,14 @@ class InstructTrainer(BaseTrainer):
         ]
         return ValidationOutput(
             metrics=dict(
-                class_accuracy=ClassificationAccuracy.compute(
-                    preds,
-                    batch.answers,
-                    ignore_case=False,
-                ),
-                class_accuracy_ignore_case=ClassificationAccuracy.compute(
-                    preds,
-                    batch.answers,
-                    ignore_case=True,
-                ),
+                accuracy={
+                    "class": classification_accuracy(
+                        preds, batch.answers, ignore_case=False
+                    ),
+                    "class_uncased": classification_accuracy(
+                        preds, batch.answers, ignore_case=True
+                    ),
+                },
             ),
             preds=preds,
             target=batch.answers,

@@ -3,25 +3,19 @@ from typing import Any
 
 import torch
 
-from metric import BaseMetric
+from utils.nested_dict import NestedDict
 
 
 @dataclass
 class TrainResult:
-    loss: float
     lr: float
-    metrics: dict[str, BaseMetric]
+    metrics: NestedDict[float]
 
     def to_dict(self) -> dict:
-        return dict(
-            loss=self.loss,
-            lr=self.lr,
-            metrics={name: metric.to_dict() for name, metric in self.metrics.items()},
-        )
+        return asdict(self)
 
-    def to_log_dict(self) -> dict[str, float]:
-        metrics = {name: metric.get_value() for name, metric in self.metrics.items()}
-        return dict(loss=self.loss, lr=self.lr, **metrics)
+    def to_log_dict(self) -> NestedDict[float]:
+        return dict(lr=self.lr, **self.metrics)
 
 
 @dataclass
@@ -33,23 +27,20 @@ class Example:
 
 @dataclass
 class ValidationResult:
-    metrics: dict[str, BaseMetric]
+    metrics: NestedDict[float]
     examples: list[Example]
 
     def to_dict(self) -> dict:
-        return dict(
-            metrics={name: metric.to_dict() for name, metric in self.metrics.items()},
-            example=[asdict(ex) for ex in self.examples],
-        )
+        return asdict(self)
 
-    def to_log_dict(self) -> dict[str, float]:
-        return {name: metric.get_value() for name, metric in self.metrics.items()}
+    def to_log_dict(self) -> NestedDict[float]:
+        return self.metrics
 
 
 @dataclass
 class TrainOutput:
     loss: torch.Tensor
-    metrics: dict[str, BaseMetric]
+    metrics: NestedDict[float]
     info: dict[str, list[Any]] = field(default_factory=lambda: {})
 
 
@@ -57,5 +48,5 @@ class TrainOutput:
 class ValidationOutput:
     preds: list[str]
     target: list[str]
-    metrics: dict[str, BaseMetric]
+    metrics: NestedDict[float]
     info: dict[str, list[Any]] = field(default_factory=lambda: {})
