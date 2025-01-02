@@ -107,7 +107,8 @@ class TrainerProgress:
         return text
 
     def end_epoch(self):
-        self.epoch += 1
+        if self.epoch < self.num_epochs:
+            self.epoch += 1
         self.pbar.advance(self.total)
         self.pbar.update(self.total, prefix=self._get_prefix("total"))
 
