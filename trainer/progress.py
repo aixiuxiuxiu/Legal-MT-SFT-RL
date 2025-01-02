@@ -122,7 +122,6 @@ class TrainerProgress:
 
     def stop(self, name: TaskName):
         task = self._get_task(name)
-        self.pbar.stop_task(task)
         self.pbar.update(task, visible=False)
 
     def advance(self, name: TaskName, num: int = 1):
