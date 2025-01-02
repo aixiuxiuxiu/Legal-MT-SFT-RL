@@ -287,45 +287,47 @@ class BaseTrainer(ABC):
                 )
                 self.console.print(table)
 
-                self.save_pretrained("latest")
-                current_metric = nested_dict.get_recursive(
-                    validation_result.metrics, self.best_metric.key
-                )
-                if not isinstance(current_metric, (int, float)):
-                    raise KeyError(
-                        "Cannot get value of validation metric for "
-                        f"key={self.best_metric.key!r}, got {current_metric}."
+                with self.progress.spinner("Saving model and tokeniser"):
+                    self.save_pretrained("latest")
+                    current_metric = nested_dict.get_recursive(
+                        validation_result.metrics, self.best_metric.key
                     )
-                if self.best_metric.is_new_best(best_metric_value, current_metric):
-                    best_metric_value = current_metric
-                    self.save_pretrained("best")
-                    icon = "🔔"
-                    self.console.print(
-                        f"{icon} New best checkpoint: Epoch {epoch + 1} — "
-                        f"{self.best_metric.name} = {best_metric_value:.5f} {icon}"
-                    )
+                    if not isinstance(current_metric, (int, float)):
+                        raise KeyError(
+                            "Cannot get value of validation metric for "
+                            f"key={self.best_metric.key!r}, got {current_metric}."
+                        )
+                    if self.best_metric.is_new_best(best_metric_value, current_metric):
+                        best_metric_value = current_metric
+                        self.save_pretrained("best")
+                        icon = "🔔"
+                        self.console.print(
+                            f"{icon} New best checkpoint: Epoch {epoch + 1} — "
+                            f"{self.best_metric.name} = {best_metric_value:.5f} {icon}"
+                        )
 
                 if self.wandb:
-                    for example in validation_result.examples:
-                        # Adding the row to the table, because only the most recent one is
-                        # shown in the wandb interface, but it should be easy to compare
-                        # them.
-                        self.example_table.add_data(
-                            epoch + 1,
-                            example.path,
-                            example.pred,
-                            example.target,
+                    with self.progress.spinner("Logging to Weights & Biases"):
+                        for example in validation_result.examples:
+                            # Adding the row to the table, because only the most recent
+                            # one is shown in the wandb interface, but it should be easy
+                            # to compare them.
+                            self.example_table.add_data(
+                                epoch + 1,
+                                example.path,
+                                example.pred,
+                                example.target,
+                            )
+                        self.wandb.log(
+                            dict(
+                                epoch=epoch + 1,
+                                train=train_result.to_log_dict(),
+                                validation=validation_result.to_log_dict(),
+                            ),
                         )
-                    self.wandb.log(
-                        dict(
-                            epoch=epoch + 1,
-                            train=train_result.to_log_dict(),
-                            validation=validation_result.to_log_dict(),
-                        ),
-                    )
                 self.progress.end_epoch()
             if self.wandb:
-                # Log the example over time in a table. wandb does not support updating the
-                # table at each epoch, but only a "summary", so the whole table needs to be
-                # logged at once.
+                # Log the example over time in a table. wandb does not support updating
+                # the table at each epoch, but only a "summary", so the whole table
+                # needs to be logged at once.
                 self.wandb.log(dict(example=self.example_table))

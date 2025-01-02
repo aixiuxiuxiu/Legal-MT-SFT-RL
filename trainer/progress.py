@@ -1,7 +1,10 @@
+from collections.abc import Generator
+from contextlib import contextmanager
 from types import TracebackType
 from typing import Literal, Self
 
-from rich.console import Console
+from rich.console import Console, Group
+from rich.live import Live
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -11,6 +14,7 @@ from rich.progress import (
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
+from rich.status import Status
 from rich.table import Column
 
 type TaskName = Literal["total", "train", "validation"]
@@ -31,6 +35,8 @@ class TrainerProgress:
     Epoch 1 - Train   4% ━╸━━━━━━━━━━━━━━━━━━━━━━━━━━━━  36/800 • 0:01:09 • ETA 0:18:08
     """
 
+    live: Live
+    status: Status
     pbar: Progress
     total: TaskID
     train: TaskID
@@ -43,6 +49,7 @@ class TrainerProgress:
         console: Console = Console(),
         start_epoch: int = 1,
     ):
+        self.status = Status("", console=console)
         self.pbar = Progress(
             TextColumn("{task.fields[prefix]}"),
             TextColumn("[progress.description]{task.description}"),
@@ -66,10 +73,11 @@ class TrainerProgress:
         )
         self.epoch = start_epoch
         self.num_epochs = num_epochs
+        self.live = Live(Group(self.pbar), console=console)
 
     def __enter__(self) -> Self:
-        self.pbar.__enter__()
         self.start("total", total=self.num_epochs)
+        self.live.__enter__()
         return self
 
     def __exit__(
@@ -78,7 +86,7 @@ class TrainerProgress:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ):
-        self.pbar.__exit__(exc_type=exc_type, exc_val=exc_val, exc_tb=exc_tb)
+        self.live.__exit__(exc_type=exc_type, exc_val=exc_val, exc_tb=exc_tb)
 
     def _get_task(self, name: TaskName) -> TaskID:
         if name == "total":
@@ -120,3 +128,17 @@ class TrainerProgress:
     def advance(self, name: TaskName, num: int = 1):
         task = self._get_task(name)
         self.pbar.advance(task, advance=num)
+
+    @contextmanager
+    def spinner(self, text: str) -> Generator[Status]:
+        self.start_spinner(text)
+        yield self.status
+        self.stop_spinner()
+
+    def start_spinner(self, text: str):
+        self.status.update(text)
+        self.live.update(Group(self.pbar, self.status), refresh=True)
+
+    def stop_spinner(self):
+        self.status.stop()
+        self.live.update(Group(self.pbar), refresh=True)
