@@ -15,7 +15,7 @@ from wandb.sdk.wandb_run import Run as WandbRun
 
 from dataset.batch import Batch
 from debugger import breakpoint
-from dist import sync_dict_values
+from dist import is_main, sync_dict_values
 from lr_scheduler import BaseLrScheduler
 from metric import (
     Metric,
@@ -250,7 +250,7 @@ class BaseTrainer(ABC):
 
     def save_pretrained(self, name: str) -> Path:
         path = self.save_dir / name
-        if self.wandb:
+        if is_main():
             path.mkdir(parents=True, exist_ok=True)
             model = self.unwrap_model()
             # Unwrapping the module makes the type checking brittle, but this is
