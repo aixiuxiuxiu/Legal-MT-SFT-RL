@@ -78,7 +78,7 @@ def main() -> None:
         # Only shuffle when not using a sampler
         shuffle=train_sampler is None,
         sampler=train_sampler,
-        pin_memory=hardware_manager.is_cuda(),
+        pin_memory=not cfg.hardware.no_pin_memory and hardware_manager.is_cuda(),
         # Keep workers alive after the epoch ends to avoid re-initialising them.
         # NOTE: If RAM becomes an issue, set this to false.
         persistent_workers=cfg.hardware.has_persistent_workers(),
@@ -113,7 +113,7 @@ def main() -> None:
         num_workers=cfg.hardware.calculate_num_workers(),
         shuffle=False,
         sampler=validation_sampler,
-        pin_memory=hardware_manager.is_cuda(),
+        pin_memory=not cfg.hardware.no_pin_memory and hardware_manager.is_cuda(),
         # Keep workers alive after the epoch ends to avoid re-initialising them.
         # NOTE: If RAM becomes an issue, set this to false.
         persistent_workers=cfg.hardware.has_persistent_workers(),

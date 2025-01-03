@@ -25,6 +25,8 @@ class HardwareConfig:
     # Do not persist workers after the epoch ends but reinitialise them at the start of
     # every epoch. (Slower but uses much less RAM)
     no_persistent_workers: bool = field(action="store_true")
+    # Disable pin memory for the data loading.
+    no_pin_memory: bool = field(action="store_true")
     # Type for mixed-precision. By default it will use auto, which will use bf16 if the
     # GPU supports it, and otherwise fallback to fp16. To disable it, use "none" as the
     # argument."
