@@ -4,6 +4,7 @@ from rich.table import Table
 from lr_scheduler.base import BaseLrScheduler
 from trainer.result import TrainResult, ValidationResult
 from utils import nested_dict
+from utils.fmt import format_duration
 from utils.nested_dict import NestedDict
 
 from .metrics import Metric
@@ -33,6 +34,7 @@ def table_from_metrics(
     metrics: list[Metric],
     title: str | None = None,
     lr_scheduler: BaseLrScheduler | None = None,
+    time_elapsed: float | None = None,
 ) -> Table:
     caption = "Learning Rate = {lr:.8f} ≈ {lr:.4e}".format(lr=train.lr)
     if lr_scheduler and lr_scheduler.is_warmup():
@@ -41,6 +43,9 @@ def table_from_metrics(
             warmup_steps=lr_scheduler.warmup_steps,
             percent=lr_scheduler.step / lr_scheduler.warmup_steps,
         )
+    if time_elapsed:
+        elapsed = f"Time elapsed {format_duration(time_elapsed)}"
+        title = f"{title} ({elapsed})" if title else elapsed
     table = Table(
         title=title,
         box=box.HORIZONTALS,
@@ -60,6 +65,10 @@ def table_from_metrics(
         validation_row.append(
             get_formatted_number_from_nested_dict(validation.metrics, key=metric.key)
         )
+    table.add_column("Duration", justify="right")
+    train_row.append(format_duration(train.time_elapsed))
+    validation_row.append(format_duration(validation.time_elapsed))
+
     table.add_row(*train_row)
     table.add_row(*validation_row)
     return table

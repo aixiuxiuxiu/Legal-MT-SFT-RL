@@ -10,6 +10,7 @@ from utils.nested_dict import NestedDict
 class TrainResult:
     lr: float
     metrics: NestedDict[float]
+    time_elapsed: float
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -29,6 +30,7 @@ class Example:
 class ValidationResult:
     metrics: NestedDict[float]
     examples: list[Example]
+    time_elapsed: float
 
     def to_dict(self) -> dict:
         return asdict(self)

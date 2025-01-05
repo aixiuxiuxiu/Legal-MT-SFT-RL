@@ -1,4 +1,5 @@
 import os
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Self
@@ -146,6 +147,7 @@ class BaseTrainer(ABC):
         # But for the first step it needs to be done manually.
         self.optimiser.zero_grad()
 
+        start_time = time.time()
         metrics = MetricTracker(self.metrics, when="train")
         self.progress.start(
             "train",
@@ -167,6 +169,7 @@ class BaseTrainer(ABC):
         return TrainResult(
             lr=self.get_lr(),
             metrics=mean_metrics,
+            time_elapsed=time.time() - start_time,
         )
 
     @torch.no_grad()
@@ -177,6 +180,7 @@ class BaseTrainer(ABC):
         FastVisionModel.for_inference(self.unwrap_model())
         num_replicas = set_sampler_epoch(data_loader, epoch=epoch)
 
+        start_time = time.time()
         metrics = MetricTracker(self.metrics, when="validation")
         self.progress.start(
             "validation",
@@ -213,6 +217,7 @@ class BaseTrainer(ABC):
         return ValidationResult(
             metrics=mean_metrics,
             examples=examples,
+            time_elapsed=time.time() - start_time,
         )
 
     @abstractmethod
@@ -272,20 +277,12 @@ class BaseTrainer(ABC):
         best_metric_value = None
         with self.progress:
             for epoch in range(self.num_epochs):
+                start_time = time.time()
                 train_result = self.train_epoch(train_data_loader, epoch=epoch)
 
                 validation_result = self.validation_epoch(
                     validation_data_loader, epoch=epoch
                 )
-
-                table = table_from_metrics(
-                    train=train_result,
-                    validation=validation_result,
-                    metrics=self.metrics,
-                    title=f"Epoch {epoch + 1}",
-                    lr_scheduler=self.lr_scheduler,
-                )
-                self.console.print(table)
 
                 with self.progress.spinner("Saving model and tokeniser"):
                     self.save_pretrained("latest")
@@ -297,14 +294,12 @@ class BaseTrainer(ABC):
                             "Cannot get value of validation metric for "
                             f"key={self.best_metric.key!r}, got {current_metric}."
                         )
-                    if self.best_metric.is_new_best(best_metric_value, current_metric):
+                    is_new_best = self.best_metric.is_new_best(
+                        best_metric_value, current_metric
+                    )
+                    if is_new_best:
                         best_metric_value = current_metric
                         self.save_pretrained("best")
-                        icon = "🔔"
-                        self.console.print(
-                            f"{icon} New best checkpoint: Epoch {epoch + 1} — "
-                            f"{self.best_metric.name} = {best_metric_value:.5f} {icon}"
-                        )
 
                 if self.wandb:
                     with self.progress.spinner("Logging to Weights & Biases"):
@@ -325,6 +320,27 @@ class BaseTrainer(ABC):
                                 validation=validation_result.to_log_dict(),
                             ),
                         )
+
+                table = table_from_metrics(
+                    train=train_result,
+                    validation=validation_result,
+                    metrics=self.metrics,
+                    title=f"Epoch {epoch + 1}",
+                    lr_scheduler=self.lr_scheduler,
+                    time_elapsed=time.time() - start_time,
+                )
+                self.console.print(table)
+
+                # The new best checkpoint should be printed after the table, however
+                # saving it should be included in the timing, hence the reporting is
+                # split off from the checkpoint above.
+                if is_new_best:
+                    icon = "🔔"
+                    self.console.print(
+                        f"{icon} New best checkpoint: Epoch {epoch + 1} — "
+                        f"{self.best_metric.name} = {best_metric_value:.5f} {icon}"
+                    )
+
                 self.progress.end_epoch()
             if self.wandb:
                 # Log the example over time in a table. wandb does not support updating
