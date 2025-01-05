@@ -7,15 +7,18 @@ from rich.console import Console, Group
 from rich.live import Live
 from rich.progress import (
     BarColumn,
-    MofNCompleteColumn,
     Progress,
     TaskID,
     TextColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
 )
 from rich.status import Status
-from rich.table import Column
+
+from .progress_columns import (
+    CompletionRatioColumn,
+    ElapsedColumn,
+    ETAColumn,
+    SpeedColumn,
+)
 
 type TaskName = Literal["total", "train", "validation"]
 
@@ -59,11 +62,13 @@ class TrainerProgress:
                 style="dim",
                 complete_style="none",
             ),
-            MofNCompleteColumn(table_column=Column(justify="right")),
+            CompletionRatioColumn(),
             TextColumn("[dim]•[/dim]"),
-            TimeElapsedColumn(),
-            TextColumn("[dim]•[/dim] [progress.remaining]ETA"),
-            TimeRemainingColumn(),
+            ElapsedColumn(),
+            TextColumn("[dim]•[/dim]"),
+            ETAColumn(human_readable="always"),
+            TextColumn("[dim]•[/dim]"),
+            SpeedColumn(),
             console=console,
         )
         self.total = self.pbar.add_task("Total", start=False, prefix="")
