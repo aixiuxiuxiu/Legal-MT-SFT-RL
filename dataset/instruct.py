@@ -11,6 +11,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizerBase
 
+from dataset.resize import ImageResizer
+
 from .chat.messages import ChatMessage
 
 
@@ -59,7 +61,10 @@ class InstructSample:
 
     @classmethod
     def from_json(
-        cls, path: str | os.PathLike, prompts: PromptSelection = PromptSelection()
+        cls,
+        path: str | os.PathLike,
+        prompts: PromptSelection = PromptSelection(),
+        resizer: ImageResizer = ImageResizer(),
     ) -> Self:
         path = Path(path)
         with open(path, "r", encoding="utf-8") as fd:
@@ -76,6 +81,7 @@ class InstructSample:
         image_path = data.get("image")
         assert image_path is not None, f"Sample `{path}` does not contain `image`"
         image = Image.open(path.parent / image_path)
+        image = resizer(image)
         messages.append(ChatMessage.from_inputs([image, question], role="user"))
         answer = data.get("answer")
         assert answer is not None, f"Sample `{path}` does not contain `answer`"
@@ -105,6 +111,7 @@ class InstructDataset(Dataset):
         prompts: str | os.PathLike | None = None,
         first_prompt_only: bool = False,
         ignore_index: int = -100,
+        image_resizer: ImageResizer = ImageResizer(),
     ):
         """
         Args:
@@ -121,6 +128,8 @@ class InstructDataset(Dataset):
                 prompt selection. Helpful for the validation, so that the prompt remains
                 consistent. [Default: False]
             ignore_index (int): Label value that is ignored in the loss. [Default: -100]
+            image_resizer (ImageResizer): Image resizer to apply to each image. The
+                default is a no-op.
         """
         self.path = Path(path)
         self.processor = processor
@@ -143,9 +152,12 @@ class InstructDataset(Dataset):
             if prompts
             else PromptSelection(first_only=self.first_prompt_only)
         )
+        self.image_resizer = image_resizer
 
     def __len__(self) -> int:
         return len(self.files)
 
     def __getitem__(self, i: int) -> InstructSample:
-        return InstructSample.from_json(self.files[i], prompts=self.prompt_selection)
+        return InstructSample.from_json(
+            self.files[i], prompts=self.prompt_selection, resizer=self.image_resizer
+        )

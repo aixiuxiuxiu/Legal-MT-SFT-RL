@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from config.train import TrainConfig
+from dataset.resize import ImageResizer
 
 # ruff: noqa: E402 (Disable import at top lint, because of this workaround)
 # unsloth hardcodes "cuda:0" in an attempt to disallow multi-GPU as they want to
@@ -60,10 +61,12 @@ def main() -> None:
             model, device_ids=[0], find_unused_parameters=False
         )
 
+    image_resizer = ImageResizer(larger_side=cfg.image.size, when=cfg.image.resize)
     train_dataset = InstructDataset(
         cfg.train_data,
         processor=processor,
         prompts=cfg.prompts,
+        image_resizer=image_resizer,
     )
     train_collator = InstructCollator(processor=processor)
     train_sampler = (
@@ -92,6 +95,7 @@ def main() -> None:
         processor=validation_processor,
         prompts=cfg.prompts,
         first_prompt_only=True,
+        image_resizer=image_resizer,
     )
 
     validation_collator = InstructCollator(

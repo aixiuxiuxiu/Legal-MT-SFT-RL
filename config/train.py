@@ -7,6 +7,7 @@ from simple_parsing import field
 
 from .entry import ConfigEntry
 from .hardware import HardwareConfig
+from .image import ImageConfig
 from .lora import LoraConfig
 from .lr import LrConfig
 from .optim import OptimConfig
@@ -46,6 +47,7 @@ class TrainConfig(ConfigEntry):
     # Additional tags to add to the run in wandb
     tags: list[str] = field(default_factory=lambda: [])
 
+    image: ImageConfig = field(default_factory=ImageConfig)
     lr: LrConfig = field(default_factory=LrConfig)
     optim: OptimConfig = field(default_factory=OptimConfig)
     hardware: HardwareConfig = field(default_factory=HardwareConfig)
