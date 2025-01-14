@@ -23,6 +23,7 @@ from metric import (
     MetricTracker,
 )
 from metric.table import table_from_metrics
+from model.utils import unwrap_model, unwrap_tokeniser
 from utils import nested_dict
 from utils.hardware import HardwareManager
 
@@ -99,24 +100,11 @@ class BaseTrainer(ABC):
             )
         self.best_metric = best_metric
 
-    # Unwraps a model to the core model, which can be across multiple layers with
-    # wrappers such as DistributedDataParallel.
     def unwrap_model(self) -> nn.Module:
-        model = self.model
-        while hasattr(model, "module") and isinstance(model.module, nn.Module):
-            model = model.module
-        return model
+        return unwrap_model(self.model)
 
     def unwrap_tokeniser(self) -> PreTrainedTokenizerBase:
-        tokeniser = (
-            # FIXME: Fix this type annotation for Image/Text processors.
-            # But this is at least safe.
-            self.processor.tokenizer
-            if hasattr(self.processor, "tokenizer")
-            and isinstance(self.processor.tokenizer, PreTrainedTokenizerBase)
-            else self.processor
-        )
-        return tokeniser
+        return unwrap_tokeniser(self.processor)
 
     def get_lr(self) -> float:
         return (

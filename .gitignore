@@ -1,4 +1,5 @@
 /log
+/results
 /wandb
 # Stupid generated unsloth files
 /unsloth_compiled_cache

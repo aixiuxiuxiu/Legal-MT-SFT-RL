@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from dataset.resize import ResizeWhen
+from dataset.resize import ImageResizer, ResizeWhen
 
 # HACK: simple-parsing does not support types defined with the `type` keyword, which are
 # lazily evaluated, so in order to use it as the type of the args, the right-hand side
@@ -21,3 +21,6 @@ class ImageConfig:
     # well. Use "when-smaller" or "when-larger" if you want to ensure a minimum or
     # maximum size, respectively.
     resize: ResizeWhenTy = "always"
+
+    def create_resizer(self) -> ImageResizer:
+        return ImageResizer(larger_side=self.size, when=self.resize)

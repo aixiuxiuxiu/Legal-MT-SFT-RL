@@ -1,3 +1,3 @@
-from . import vision
+from . import utils, vision
 
-__all__ = ["vision"]
+__all__ = ["vision", "utils"]
