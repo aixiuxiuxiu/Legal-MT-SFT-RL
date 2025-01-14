@@ -46,6 +46,10 @@ exclude = [
   "log/",
   "unsloth_compiled_cache/",
 ]
+# Automatically look in the virtual environment for packages
+venv = ".venv"
+venvPath = "."
+
 
 [tool.pytest.ini_options]
 testpaths = "test"
