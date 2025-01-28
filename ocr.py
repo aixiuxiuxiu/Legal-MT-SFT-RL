@@ -2,7 +2,11 @@ import os
 from pathlib import Path
 
 import torch
-from rich.progress import track
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TextColumn,
+)
 from torch.utils.data import DataLoader
 from unsloth import FastVisionModel
 
@@ -10,6 +14,12 @@ from config.ocr import OcrConfig
 from dataset import InstructDataset
 from dataset.collate import InstructCollator
 from model.utils import unwrap_tokeniser
+from trainer.progress_columns import (
+    CompletionRatioColumn,
+    ElapsedColumn,
+    ETAColumn,
+    SpeedColumn,
+)
 
 
 @torch.inference_mode()
@@ -49,25 +59,45 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     tokeniser = unwrap_tokeniser(processor)
-    # TODO: Customised progress bar
-    for batch in track(data_loader, description="Running OCR"):
-        inputs = batch.data.to("cuda")
-        with hardware_manager.autocast():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=cfg.max_new_tokens,
-                pad_token_id=tokeniser.pad_token_id,
-            )
+    pbar = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        BarColumn(
+            bar_width=None,
+            style="dim",
+            complete_style="none",
+        ),
+        CompletionRatioColumn(),
+        TextColumn("[dim]•[/dim]"),
+        ElapsedColumn(),
+        TextColumn("[dim]•[/dim]"),
+        ETAColumn(human_readable="always"),
+        TextColumn("[dim]•[/dim]"),
+        SpeedColumn(),
+    )
+    task = pbar.add_task("Extracting Text (OCR)", total=len(dataset))
+    with pbar:
+        for batch in data_loader:
+            # The last batch may not be a full batch
+            curr_batch_size = batch.data["input_ids"].size(0)
+            inputs = batch.data.to("cuda")
+            with hardware_manager.autocast():
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=cfg.max_new_tokens,
+                    pad_token_id=tokeniser.pad_token_id,
+                )
 
-        preds = [
-            tokeniser.decode(out[input_ids.size(0) :], skip_special_tokens=True)
-            for input_ids, out in zip(inputs.input_ids, outputs)
-        ]
-        for pred, path in zip(preds, batch.info["path"]):
-            with open(
-                out_dir / path.with_suffix(".md").name, "w", encoding="utf-8"
-            ) as fd:
-                fd.write(pred)
+            preds = [
+                tokeniser.decode(out[input_ids.size(0) :], skip_special_tokens=True)
+                for input_ids, out in zip(inputs.input_ids, outputs)
+            ]
+            for pred, path in zip(preds, batch.info["path"]):
+                with open(
+                    out_dir / path.with_suffix(".md").name, "w", encoding="utf-8"
+                ) as fd:
+                    fd.write(pred)
+            pbar.advance(task, curr_batch_size)
 
 
 if __name__ == "__main__":
