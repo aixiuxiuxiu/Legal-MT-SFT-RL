@@ -61,3 +61,4 @@ extend-select = ["I"]
 [tool.uv.sources]
 unsloth = { git = "https://github.com/unslothai/unsloth.git" }
 unsloth-zoo = { git = "https://github.com/unslothai/unsloth-zoo.git" }
+transformers = { git = "https://github.com/huggingface/transformers.git" }
