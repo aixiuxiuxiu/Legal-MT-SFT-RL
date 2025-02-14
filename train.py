@@ -144,7 +144,7 @@ def main() -> None:
         # could just filter by the config values, but these are the most interseting
         # ones, so you also don't need to go through all the config values.
         tags = [
-            f"model:{model_config._name_or_path}",
+            f"model:{model_config._name_or_path}",  # pyright: ignore[reportAttributeAccessIssue]
             f"rank:{cfg.lora.rank}",
             *cfg.tags,
         ]

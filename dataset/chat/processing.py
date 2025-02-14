@@ -7,6 +7,25 @@ from transformers import PreTrainedTokenizerBase
 from .messages import ChatMessage
 
 
+# Just a small wrapper around apply_chat_template, mostly to also get the correct types
+# from them.
+def tokenise_chat(
+    processor: PreTrainedTokenizerBase,
+    messages: list[ChatMessage],
+    add_generation_prompt: bool = False,
+) -> list[int]:
+    tokens = processor.apply_chat_template(
+        # HuggingFace got the type annotations wrong of the chat messages.
+        [message.as_chat() for message in messages],  # pyright: ignore[reportArgumentType]
+        tokenize=True,
+        add_generation_prompt=add_generation_prompt,
+    )
+    assert isinstance(tokens, list) and isinstance(tokens[0], list), (
+        "Tokenised messages are not a batch of tokens (list[list[int]])"
+    )
+    return tokens[0]
+
+
 @dataclass
 class MessageBoundaries:
     """
@@ -51,30 +70,27 @@ class MessageBoundaries:
         system_message = ChatMessage.from_inputs([""], role="system")
         assistant_message = ChatMessage.from_inputs([""], role="assistant")
 
-        system_only = processor.apply_chat_template(
-            # HuggingFace got the type annotations wrong of the chat messages.
-            [system_message.as_chat()],  # pyright: ignore[reportArgumentType]
-            tokenize=True,
+        system_only = tokenise_chat(
+            processor,
+            [system_message],
             add_generation_prompt=False,
         )
-        with_assistant_start = processor.apply_chat_template(
-            # HuggingFace got the type annotations wrong of the chat messages.
-            [system_message.as_chat()],  # pyright: ignore[reportArgumentType]
-            tokenize=True,
+        with_assistant_start = tokenise_chat(
+            processor,
+            [system_message],
             add_generation_prompt=True,
         )
-        with_assistant = processor.apply_chat_template(
-            # HuggingFace got the type annotations wrong of the chat messages.
-            [system_message.as_chat(), assistant_message.as_chat()],  # pyright: ignore[reportArgumentType]
-            tokenize=True,
+        with_assistant = tokenise_chat(
+            processor,
+            [system_message, assistant_message],
             add_generation_prompt=False,
         )
 
         # HuggingFace is really annoying with types that are just unions of all
         # possibilities. There exist ways to create an overload for cases where one
         # argument is set to True.
-        start = with_assistant_start[len(system_only) :]  # pyright: ignore[reportArgumentType]
-        end = with_assistant[len(with_assistant_start) :]  # pyright: ignore[reportArgumentType]
+        start = with_assistant_start[len(system_only) :]
+        end = with_assistant[len(with_assistant_start) :]
 
         # FIXME: Fix this type annotation for Image/Text processors.
         # But this is at least safe.
@@ -104,12 +120,7 @@ class MessageBoundaries:
         msg = "Hello"
         assistant_message = ChatMessage.from_inputs([msg], role="assistant")
         tokens = torch.tensor(
-            processor.apply_chat_template(
-                # HuggingFace got the type annotations wrong of the chat messages.
-                [assistant_message.as_chat()],  # pyright: ignore[reportArgumentType]
-                tokenize=True,
-                add_generation_prompt=False,
-            )
+            tokenise_chat(processor, [assistant_message], add_generation_prompt=False)
         )
         # Extract just the text itself.
         mask = self.mask(tokens, include_start=False, include_end=False)

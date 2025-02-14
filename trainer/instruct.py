@@ -48,7 +48,7 @@ class InstructTrainer(BaseTrainer):
         inputs = batch.data.to(self.hardware.device)
         unwrapped_model = self.unwrap_model()
         tokeniser = self.unwrap_tokeniser()
-        outputs = unwrapped_model.generate(
+        outputs = unwrapped_model.generate(  # pyright: ignore[reportCallIssue]
             **inputs,
             max_new_tokens=self.max_new_tokens,
             pad_token_id=tokeniser.pad_token_id,

@@ -248,7 +248,7 @@ class BaseTrainer(ABC):
             model = self.unwrap_model()
             # Unwrapping the module makes the type checking brittle, but this is
             # guaranteed to be any model that implements save_pretrained.
-            model.save_pretrained(path, safe_serialization=True)
+            model.save_pretrained(path, safe_serialization=True)  # pyright: ignore[reportCallIssue]
             self.processor.save_pretrained(path)
         return path
 
