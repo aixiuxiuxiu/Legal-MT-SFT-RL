@@ -36,6 +36,38 @@ uv run train.py --help
 uv run ruff check
 ```
 
+### ARM + CUDA Builds (GH200)
+
+Unfortunately, most ML Python packages are not published for ARM + CUDA, so that means they mostly need to be built from
+source. An odd exception is PyTorch, which does not publish the ARM + CUDA package to PyPI, but have it on their own
+index. If you install PyTorch on ARM from PyPI, you'll always get the CPU only version.
+
+While uv allows specifying dependencies based on the architecture, there are some annoyances for the compilation from
+source for certain packages. Notably, they require certain build dependencies, which are also dependencies of the
+project itself, and as uv does not prioritise certain dependencies, it would result in a *module not found* error.
+Everything is taken care of by uv, as that was strictly defined in the list of dependencies
+(even the --no-build-isolation is configured there), but it just means that you need to do it in two steps
+
+In order to achieve this, there is an optional dependency group with the name compile, that needs to be installed
+after the regular dependencies.
+
+```sh
+# First install all pre-compiled packages (including build dependencies)
+uv sync
+
+# Afterwards install the compile group
+# Use -v to see the compilation progress, otherwise it's just a spinner.
+uv sync --extra compile -v
+```
+
+Note: There are two issues with `xformers`, firstly, it tries to infer `TORCH_CUDA_ARCH_LIST` if it was not set, but
+expects it to only contain numbers, whereas the Hopper GPUs also have `9.0a`, so converting that to a number fails. This
+can be avoided, by setting the environment variable for the build. Secondly, some of the compilations time out for some
+reason, which can be fixed by running it again.
+
+Use `TORCH_CUDA_ARCH_LIST="9.0;9.0a;9.0+PTX;9.0a+PTX" uv sync --extra compile -v` to compile it correctly, and if
+necessary multiple times.
+
 ## Faster Model Downloads
 
 The *experimental* library [`hf-transfer`][hf-transfer] allows much greater download speeds for models (beyond 500MB/s) from the
