@@ -37,12 +37,20 @@ before_script:
 basedpyright:
   stage: Code Quality
   script:
-    - uv run basedpyright .
+    - uv run basedpyright . --gitlabcodequality basedpyright-report.json
+  artifacts:
+    reports:
+      codequality: basedpyright-report.json
 
 ruff-check:
   stage: Code Quality
   script:
     - uv run ruff check --output-format=full .
+    # Need to run it a second time to generate the GitLab report, as it uses stdout.
+    - uv run ruff check --output-format=gitlab . > ruff-check-report.json
+  artifacts:
+    reports:
+      codequality: ruff-check-report.json
 
 ruff-format:
   stage: Code Quality
