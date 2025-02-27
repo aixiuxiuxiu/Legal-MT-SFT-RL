@@ -157,6 +157,9 @@ class MessageBoundaries:
         for pos in initial_match.nonzero():
             *leading, start = pos.unbind()
             end = start + sequence.size(-1)
+            # Not enough tokens in the input to be a match.
+            if end > input.size(-1):
+                continue
             # Get the sequence of start tokens
             start_tokens = input[*leading, start:end]
             # Verify that the whole sequence is correct, not only the first.
