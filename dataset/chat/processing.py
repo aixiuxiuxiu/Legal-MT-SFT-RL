@@ -63,26 +63,28 @@ class MessageBoundaries:
         Args:
             processor (PreTrainedTokenizerBase): Processor / tokeniser of the model
         """
-        # The system message must be defined, because some chat templates will automatically
-        # add a default system message if none is provided.
-        # Also since apply_chat_templates requires at least one message, this can be used as
-        # the single one.
-        system_message = ChatMessage.from_inputs([""], role="system")
+        # The user message must be defined, because some chat templates require
+        # alternating user/assistant, which must start with user. Some will add
+        # a default system message if none is provided, so the user message ensures that
+        # it is consistent.
+        # Also since apply_chat_templates requires at least one message, this can be
+        # used as the single one.
+        user_message = ChatMessage.from_inputs([""], role="user")
         assistant_message = ChatMessage.from_inputs([""], role="assistant")
 
         system_only = tokenise_chat(
             processor,
-            [system_message],
+            [user_message],
             add_generation_prompt=False,
         )
         with_assistant_start = tokenise_chat(
             processor,
-            [system_message],
+            [user_message],
             add_generation_prompt=True,
         )
         with_assistant = tokenise_chat(
             processor,
-            [system_message, assistant_message],
+            [user_message, assistant_message],
             add_generation_prompt=False,
         )
 
@@ -118,9 +120,16 @@ class MessageBoundaries:
         assert len(self.start) > 0, "Start boundary was not found (empty)"
         assert len(self.end) > 0, "End boundary was not found (empty)"
         msg = "Hello"
+        # User message is necessary for chat templates that require alternative between
+        # user/assistant (need to start with user)
+        user_message = ChatMessage.from_inputs([""], role="user")
         assistant_message = ChatMessage.from_inputs([msg], role="assistant")
         tokens = torch.tensor(
-            tokenise_chat(processor, [assistant_message], add_generation_prompt=False)
+            tokenise_chat(
+                processor,
+                [user_message, assistant_message],
+                add_generation_prompt=False,
+            )
         )
         # Extract just the text itself.
         mask = self.mask(tokens, include_start=False, include_end=False)
