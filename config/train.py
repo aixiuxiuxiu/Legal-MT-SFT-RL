@@ -33,6 +33,10 @@ class TrainConfig(ConfigEntry):
     # For validation, the first one in the list will always be used.
     # Structure: {"system": [], "question": []}
     prompts: Path | None = field(default=None, alias="-p")
+    # Use Group Relative Policy Optimisation (GRPO).
+    grpo: bool = field(action="store_true")
+    # Number of generations for GRPO per sample.
+    num_generations: int = 8
     # Set a different padding token, as sometimes the one defined in the model
     # config may not work correctly, e.g. when it's the <eos> token, the model would
     # just never learn when to stop.

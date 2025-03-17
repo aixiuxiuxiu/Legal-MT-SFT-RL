@@ -27,7 +27,7 @@ from wandb.sdk.wandb_run import Run as WandbRun
 from dataset import InstructDataset
 from dataset.collate import InstructCollator
 from model import vision
-from trainer import InstructTrainer
+from trainer import GrpoTrainer, InstructTrainer
 
 
 def main() -> None:
@@ -60,6 +60,16 @@ def main() -> None:
             model, device_ids=[0], find_unused_parameters=False
         )
 
+    # For GRPO, the processor needs to be the same as for the validation processor,
+    # as it generates the responses just like during validation. Whereas for the regular
+    # training, during training it is usually right padded.
+    if cfg.grpo:
+        processor.tokenizer.padding_side = "left"  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+        validation_processor = processor
+    else:
+        validation_processor = copy.deepcopy(processor)
+        validation_processor.tokenizer.padding_side = "left"  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+
     image_resizer = cfg.image.create_resizer()
     train_dataset = InstructDataset(
         cfg.train_data,
@@ -67,7 +77,12 @@ def main() -> None:
         prompts=cfg.prompts,
         image_resizer=image_resizer,
     )
-    train_collator = InstructCollator(processor=processor)
+    train_collator = InstructCollator(
+        processor=processor,
+        # With GRPO, the answer should not be included in the inputs, as they will be
+        # generated and checked afterwards.
+        include_answer=not cfg.grpo,
+    )
     train_sampler = (
         DistributedSampler(train_dataset, num_replicas=num_processes, shuffle=True)
         if num_processes > 1
@@ -87,8 +102,6 @@ def main() -> None:
         collate_fn=train_collator,
     )
 
-    validation_processor = copy.deepcopy(processor)
-    validation_processor.tokenizer.padding_side = "left"  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
     validation_dataset = InstructDataset(
         cfg.validation_data,
         processor=validation_processor,
@@ -134,12 +147,13 @@ def main() -> None:
         optimiser,
         train_data_loader,
         num_epochs=cfg.num_epochs,
+        num_generations=cfg.num_generations if cfg.grpo else 1,
     )
 
     log_dir = Path("log")
     log_dir.mkdir(parents=True, exist_ok=True)
     run: WandbRun | None = None
-    if is_main:
+    if False:
         # Tags to make filtering easier. Some of them are a bit redundant, since you
         # could just filter by the config values, but these are the most interseting
         # ones, so you also don't need to go through all the config values.
@@ -165,7 +179,8 @@ def main() -> None:
             run.define_metric("validation.accuracy", summary="max")
             run.define_metric("validation.f1", summary="max")
 
-    trainer = InstructTrainer(
+    TrainerCls = GrpoTrainer if cfg.grpo else InstructTrainer
+    trainer = TrainerCls(
         model=model,
         optimiser=optimiser,
         processor=processor,

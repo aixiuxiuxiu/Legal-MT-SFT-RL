@@ -47,7 +47,11 @@ class LrConfig:
             return int(self.warmup_steps)
 
     def create_scheduler(
-        self, optimiser: optim.Optimizer, data_loader: DataLoader, num_epochs: int = 1
+        self,
+        optimiser: optim.Optimizer,
+        data_loader: DataLoader,
+        num_epochs: int = 1,
+        num_generations: int = 1,
     ) -> BaseLrScheduler:
         return create_lr_scheduler(
             self.scheduler,
@@ -56,7 +60,7 @@ class LrConfig:
             warmup_steps=self.calculate_warmup_steps(
                 data_loader, num_epochs=num_epochs
             ),
-            total_steps=len(data_loader) * num_epochs,
+            total_steps=len(data_loader) * num_epochs * num_generations,
             end_lr=1e-8,
             # To not crash when choosing schedulers that don't support all arguments.
             allow_extra_args=True,
