@@ -33,6 +33,9 @@ def main():
     model, processor = FastVisionModel.from_pretrained(
         cfg.model,
         load_in_4bit=False,
+        # Set this to get the full precision model, otherwise unsloth just decides to
+        # use a 4bit version of QLoRA.
+        full_finetuning=True,
     )
     # model = model.to(hardware_manager.device)
     model = model.eval()
