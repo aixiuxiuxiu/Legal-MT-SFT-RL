@@ -5,6 +5,7 @@ from dataset.chat.processing import MessageBoundaries
 MODELS = [
     "unsloth/Qwen2-VL-7B-Instruct",
     "unsloth/Llama-3.2-11B-Vision-Instruct",
+    "unsloth/gemma-3-27b-it",
 ]
 
 
