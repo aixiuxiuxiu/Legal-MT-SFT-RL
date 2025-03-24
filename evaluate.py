@@ -15,6 +15,7 @@ from metric.functional import classification_accuracy
 from metric.metrics import CLASS_ACCURACY, CLASS_ACCURACY_UNCASED
 from model import vision
 from model.utils import unwrap_tokeniser
+from reward.classification import extract_answer
 
 
 @torch.inference_mode()
@@ -75,21 +76,24 @@ def main() -> None:
             tokeniser.decode(out[input_ids.size(0) :], skip_special_tokens=True)
             for input_ids, out in zip(inputs.input_ids, outputs)
         ]
+        pred_answers = [extract_answer(pred) or pred for pred in preds]
         metrics.append(
             dict(
                 accuracy={
                     "class": classification_accuracy(
-                        preds, batch.answers, ignore_case=False
+                        pred_answers, batch.answers, ignore_case=False
                     ),
                     "class_uncased": classification_accuracy(
-                        preds, batch.answers, ignore_case=True
+                        pred_answers, batch.answers, ignore_case=True
                     ),
                 },
             )
         )
 
-        for pred, answer, path in zip(preds, batch.answers, batch.info["path"]):
-            writer.writerow([path.stem, pred, answer])
+        for pred, pred_answer, answer, path in zip(
+            preds, pred_answers, batch.answers, batch.info["path"]
+        ):
+            writer.writerow([path.stem, pred_answer, answer, pred])
 
     mean_metrics = metrics.mean()
     print(mean_metrics)
