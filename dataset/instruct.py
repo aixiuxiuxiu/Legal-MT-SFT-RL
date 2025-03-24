@@ -80,7 +80,7 @@ class InstructSample:
         )
         image_path = data.get("image")
         assert image_path is not None, f"Sample `{path}` does not contain `image`"
-        image = Image.open(path.parent / image_path)
+        image = Image.open(path.parent / image_path).convert("RGB")
         image = resizer(image)
         messages.append(ChatMessage.from_inputs([image, question], role="user"))
         answer = data.get("answer")
