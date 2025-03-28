@@ -37,6 +37,7 @@ def main():
         # use a 4bit version of QLoRA.
         full_finetuning=True,
     )
+    processor.tokenizer.padding_side = "left"  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
     # model = model.to(hardware_manager.device)
     model = model.eval()
     FastVisionModel.for_inference(model)
