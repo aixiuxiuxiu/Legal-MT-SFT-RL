@@ -7,6 +7,7 @@ from transformers import BatchEncoding
 from trl.trainer.utils import selective_log_softmax
 from unsloth import FastVisionModel
 
+from config.grpo import GrpoScale
 from dataset.batch import Batch, GroupedBatch
 from dist import sync_dict_values
 from metric.functional import classification_accuracy
@@ -32,6 +33,8 @@ class GrpoTrainer(BaseTrainer):
     As introduced by Deepseek-R1.
     """
 
+    scale_rewards: GrpoScale
+
     def __init__(
         self,
         *args,
@@ -56,6 +59,7 @@ class GrpoTrainer(BaseTrainer):
         # Deepseek-R1 used 0.04, but that seems to be too high.
         kl_weight: float = 0.01,
         clip_range: float = 0.2,
+        scale_rewards: GrpoScale = "std",
         **kwargs,
     ):
         super().__init__(metrics=metrics, *args, **kwargs)
@@ -67,6 +71,7 @@ class GrpoTrainer(BaseTrainer):
         self.reward_fns = reward_fns
         self.kl_weight = kl_weight
         self.clip_range = clip_range
+        self.scale_rewards = scale_rewards
 
     @torch.no_grad()
     def generate_completions(self, batch: Batch, num: int = 1) -> GroupedBatch:
@@ -204,6 +209,13 @@ class GrpoTrainer(BaseTrainer):
         self.optimiser.zero_grad()
 
         start_time = time.time()
+        match self.scale_rewards:
+            case "std":
+                reward_scale = True
+            case "max-len":
+                reward_scale = self.max_new_tokens
+            case "none":
+                reward_scale = None
         metrics = MetricTracker(self.metrics, when="train")
         self.progress.start(
             "train",
@@ -219,7 +231,9 @@ class GrpoTrainer(BaseTrainer):
                 generated = self.generate_completions(batch, num=self.num_generations)
             gen_metrics = MetricTracker(self.metrics, when="train")
             j = 0
-            for gen_batch in generated.iter_batches(self.reward_fns):
+            for gen_batch in generated.iter_batches(
+                self.reward_fns, scale=reward_scale
+            ):
                 j += 1
                 with self.hardware.autocast():
                     output = self.forward(gen_batch)

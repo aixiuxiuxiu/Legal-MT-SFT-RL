@@ -211,6 +211,7 @@ def main() -> None:
                 max_grad_norm=0.3,
                 num_epochs=cfg.num_epochs,
                 num_generations=cfg.grpo.num_generations,
+                scale_rewards=cfg.grpo.scale_rewards,
                 clip_range=cfg.grpo.clip_advantage,
                 kl_weight=cfg.grpo.kl_weight,
                 temperature=cfg.grpo.temperature,

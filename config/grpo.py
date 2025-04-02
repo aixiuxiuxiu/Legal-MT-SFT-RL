@@ -1,4 +1,10 @@
+import typing
 from dataclasses import dataclass
+from typing import Literal
+
+from simple_parsing import choice
+
+type GrpoScale = Literal["std", "max-len", "none"]
 
 
 @dataclass
@@ -9,6 +15,12 @@ class GrpoConfig:
 
     # Number of generations per sample for GRPO.
     num_generations: int = 8
+    # How to scale the rewards, e.g. by the standard deviation or max length. If max-len
+    # is used, there must be a max_new_tokens defined, otherwise there will be no
+    # scaling.
+    scale_rewards: GrpoScale = choice(
+        *typing.get_args(GrpoScale.__value__), default="std"
+    )
     # Clip range of the advantage term. A value of 0.2 means that it will clipped in the
     # range [0.8, 1.2].
     clip_advantage: float = 0.2
