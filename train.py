@@ -153,7 +153,7 @@ def main() -> None:
     log_dir = Path("log")
     log_dir.mkdir(parents=True, exist_ok=True)
     run: WandbRun | None = None
-    if False:
+    if is_main:
         # Tags to make filtering easier. Some of them are a bit redundant, since you
         # could just filter by the config values, but these are the most interseting
         # ones, so you also don't need to go through all the config values.
