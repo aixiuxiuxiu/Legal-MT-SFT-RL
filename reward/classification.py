@@ -3,7 +3,7 @@ from typing import override
 
 from .reward import RewardFn
 
-REGEX_ANSWER = re.compile(r"<answer>(.*?)</answer>", re.DOTALL | re.MULTILINE)
+REGEX_ANSWER = re.compile(r"<answer>\s*(.*?)\s*</answer>", re.DOTALL | re.MULTILINE)
 
 
 def extract_answer(completion: str) -> str | None:
