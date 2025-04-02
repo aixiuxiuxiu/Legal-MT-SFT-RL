@@ -147,7 +147,7 @@ def main() -> None:
         optimiser,
         train_data_loader,
         num_epochs=cfg.num_epochs,
-        num_generations=cfg.num_generations if cfg.grpo else 1,
+        num_generations=cfg.grpo.num_generations if cfg.trainer == "grpo" else 1,
     )
 
     log_dir = Path("log")
@@ -179,21 +179,43 @@ def main() -> None:
             run.define_metric("validation.accuracy", summary="max")
             run.define_metric("validation.f1", summary="max")
 
-    TrainerCls = GrpoTrainer if cfg.grpo else InstructTrainer
-    trainer = TrainerCls(
-        model=model,
-        optimiser=optimiser,
-        processor=processor,
-        save_dir=cfg.get_log_dir(base_dir=log_dir),
-        wandb=run,
-        # Suppress the output of other processes
-        console=Console(quiet=not is_main),
-        hardware=hardware_manager,
-        lr_scheduler=lr_scheduler,
-        max_new_tokens=512,
-        max_grad_norm=0.3,
-        num_epochs=cfg.num_epochs,
-    )
+    # TODO: Refactor to avoid duplicating everything.
+    match cfg.trainer:
+        case "instruct":
+            trainer = InstructTrainer(
+                model=model,
+                optimiser=optimiser,
+                processor=processor,
+                save_dir=cfg.get_log_dir(base_dir=log_dir),
+                wandb=run,
+                # Suppress the output of other processes
+                console=Console(quiet=not is_main),
+                hardware=hardware_manager,
+                lr_scheduler=lr_scheduler,
+                max_new_tokens=512,
+                max_grad_norm=0.3,
+                num_epochs=cfg.num_epochs,
+            )
+        case "grpo":
+            trainer = GrpoTrainer(
+                model=model,
+                optimiser=optimiser,
+                processor=processor,
+                save_dir=cfg.get_log_dir(base_dir=log_dir),
+                wandb=run,
+                # Suppress the output of other processes
+                console=Console(quiet=not is_main),
+                hardware=hardware_manager,
+                lr_scheduler=lr_scheduler,
+                max_new_tokens=512,
+                max_grad_norm=0.3,
+                num_epochs=cfg.num_epochs,
+                num_generations=cfg.grpo.num_generations,
+                clip_range=cfg.grpo.clip_advantage,
+                kl_weight=cfg.grpo.kl_weight,
+                temperature=cfg.grpo.temperature,
+                top_p=cfg.grpo.top_p,
+            )
 
     trainer.train(
         train_data_loader,

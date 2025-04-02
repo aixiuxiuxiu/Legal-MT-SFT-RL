@@ -1,16 +1,21 @@
 import os
+import typing
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
-from simple_parsing import field
+from simple_parsing import choice, field
 
 from .entry import ConfigEntry
+from .grpo import GrpoConfig
 from .hardware import HardwareConfig
 from .image import ImageConfig
 from .lora import LoraConfig
 from .lr import LrConfig
 from .optim import OptimConfig
+
+type TrainerKind = Literal["instruct", "grpo"]
 
 
 @dataclass
@@ -33,10 +38,12 @@ class TrainConfig(ConfigEntry):
     # For validation, the first one in the list will always be used.
     # Structure: {"system": [], "question": []}
     prompts: Path | None = field(default=None, alias="-p")
-    # Use Group Relative Policy Optimisation (GRPO).
-    grpo: bool = field(action="store_true")
-    # Number of generations for GRPO per sample.
-    num_generations: int = 8
+    # Which kind of Trainer to use.
+    # - `instruct`: SFT with instruction formats.
+    # - `grpo`: Group Relative Policy Optimisation (GRPO).
+    trainer: TrainerKind = choice(
+        *typing.get_args(TrainerKind.__value__), default="instruct"
+    )
     # Set a different padding token, as sometimes the one defined in the model
     # config may not work correctly, e.g. when it's the <eos> token, the model would
     # just never learn when to stop.
@@ -56,6 +63,7 @@ class TrainConfig(ConfigEntry):
     optim: OptimConfig = field(default_factory=OptimConfig)
     hardware: HardwareConfig = field(default_factory=HardwareConfig)
     lora: LoraConfig = field(default_factory=LoraConfig)
+    grpo: GrpoConfig = field(default_factory=GrpoConfig)
 
     def get_name(self) -> str:
         name = self.name

@@ -67,7 +67,10 @@ class GroupedBatch:
         return [[batch[i] for batch in self.completions] for i in range(batch_size)]
 
     def compute_rewards(
-        self, reward_fns: list[RewardFn], eps: float = 1e-5
+        self,
+        reward_fns: list[RewardFn],
+        eps: float = 1e-5,
+        scale: bool | float | None = True,
     ) -> torch.Tensor:
         """
         Compute the rewards for all the given reward functions within the group.
@@ -75,6 +78,10 @@ class GroupedBatch:
         Args:
             reward_fns (list[RewardFn]): List of reward functions.
             eps (float): Epsilon to avoid division by zero. [Default: 1e-5]
+            scale (bool | float, optional): How to scale the rewards, if set to True the
+                rewards will be scaled by the standard deviation of the group. A float
+                value will scale them by that value (e.g. max_length).
+                [Default: True]
 
         Returns:
             advantages (torch.Tensor): Advantages for all completions and batches.
@@ -96,14 +103,26 @@ class GroupedBatch:
             rewards_per_completion = rewards_matrix.sum(dim=1)
             # Group stats
             group_mean = torch.mean(rewards_per_completion)
-            group_std = torch.std(rewards_per_completion)
             # The (dis-)advtange is how much better/worse a completion is compared to
             # the whole group.
-            advantage = (rewards_per_completion - group_mean) / (group_std + eps)
+            advantage = rewards_per_completion - group_mean
+            match scale:
+                case True:
+                    group_std = torch.std(rewards_per_completion)
+                    scale_factor = group_std + eps
+                case False | None:
+                    scale_factor = 1.0
+                case val:
+                    scale_factor = val
+            advantage /= scale_factor
             advantages.append(advantage)
         return torch.stack(advantages, dim=1)
 
-    def iter_batches(self, reward_fns: list[RewardFn]) -> Generator[Batch, None, None]:
+    def iter_batches(
+        self,
+        reward_fns: list[RewardFn],
+        scale: bool | float | None = True,
+    ) -> Generator[Batch, None, None]:
         """
         Create an iterator over the batches.
 
@@ -113,12 +132,16 @@ class GroupedBatch:
 
         Args:
             reward_fns (list[RewardFn]): List of reward functions.
+            scale (bool | float, optional): How to scale the rewards, if set to True the
+                rewards will be scaled by the standard deviation of the group. A float
+                value will scale them by that value (e.g. max_length).
+                [Default: True]
 
         Returns:
             iter (Generator[Batch]): Iterator of batches.
         """
         batch_size = len(self.answers)
-        advatanges = self.compute_rewards(reward_fns)
+        advatanges = self.compute_rewards(reward_fns, scale=scale)
         for data, adv in zip(self.data, advatanges.tolist()):
             batch = Batch(
                 data=data,

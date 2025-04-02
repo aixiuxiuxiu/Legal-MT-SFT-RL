@@ -56,7 +56,6 @@ class GrpoTrainer(BaseTrainer):
         # Deepseek-R1 used 0.04, but that seems to be too high.
         kl_weight: float = 0.01,
         clip_range: float = 0.2,
-        scale_rewards: GrpoScale = "std",
         **kwargs,
     ):
         super().__init__(metrics=metrics, *args, **kwargs)
@@ -67,7 +66,7 @@ class GrpoTrainer(BaseTrainer):
         self.ignore_index = ignore_index
         self.reward_fns = reward_fns
         self.kl_weight = kl_weight
-        self.epsilon = epsilon
+        self.clip_range = clip_range
 
     @torch.no_grad()
     def generate_completions(self, batch: Batch, num: int = 1) -> GroupedBatch:
@@ -210,19 +209,29 @@ class GrpoTrainer(BaseTrainer):
             "train",
             total=len(data_loader.dataset),  # pyright: ignore[reportArgumentType]
         )
+        losses = []
+        i = 0
         for batch in data_loader:
+            i += 1
             # The last batch may not be a full batch
             curr_batch_size = batch.data["input_ids"].size(0)
             with self.hardware.autocast():
                 generated = self.generate_completions(batch, num=self.num_generations)
             gen_metrics = MetricTracker(self.metrics, when="train")
+            j = 0
             for gen_batch in generated.iter_batches(self.reward_fns):
+                j += 1
                 with self.hardware.autocast():
                     output = self.forward(gen_batch)
                 self.backward(output.loss)
                 gen_metrics.append(output.metrics)
+                losses.append(output.loss.item())
+                self.progress.start_spinner(
+                    f"Current Batch {i} [Generation: {j} / {self.num_generations}]: {gen_batch.data['input_ids'].size()} • Loss {losses[-1]} • Avg loss {torch.mean(torch.tensor(losses, dtype=torch.float))}"
+                )
             metrics.append(gen_metrics.mean())
             self.progress.advance("train", num=curr_batch_size * num_replicas)
+        self.progress.stop_spinner()
         self.progress.stop("train")
 
         mean_metrics = metrics.mean()
@@ -283,7 +292,7 @@ class GrpoTrainer(BaseTrainer):
 
         advantage_coeff1 = torch.exp(log_probs - old_log_probs)
         advantage_coeff2 = torch.clamp(
-            advantage_coeff1, 1 - self.epsilon, 1 + self.epsilon
+            advantage_coeff1, 1 - self.clip_range, 1 + self.clip_range
         )
         advantage_term1 = advantage_coeff1 * advantages.unsqueeze(-1)
         advantage_term2 = advantage_coeff2 * advantages.unsqueeze(-1)
