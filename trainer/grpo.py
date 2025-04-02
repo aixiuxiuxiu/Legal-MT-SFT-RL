@@ -43,14 +43,20 @@ class GrpoTrainer(BaseTrainer):
         metrics: list[Metric] = [CLASS_ACCURACY, CLASS_ACCURACY_UNCASED, TRAIN_LOSS],
         reward_fns: list = [
             StructureReward(
-                r"<reasoning>\n.*?\n</reasoning>", value=0.5, name="<reasoning>"
+                r"<reasoning>\n.*?\n</reasoning>",
+                value=1.0,
+                name="<reasoning>",
+                max_count=1,
             ),
-            StructureReward(r"<answer>\n.*?\n</answer>", value=0.5, name="<answer>"),
+            StructureReward(
+                r"<answer>\n.*?\n</answer>", value=1.0, name="<answer>", max_count=1
+            ),
             ClassificationReward(),
         ],
         # Deepseek-R1 used 0.04, but that seems to be too high.
         kl_weight: float = 0.01,
-        epsilon: float = 0.2,
+        clip_range: float = 0.2,
+        scale_rewards: GrpoScale = "std",
         **kwargs,
     ):
         super().__init__(metrics=metrics, *args, **kwargs)
