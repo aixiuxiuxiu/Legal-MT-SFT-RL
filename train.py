@@ -81,7 +81,7 @@ def main() -> None:
         processor=processor,
         # With GRPO, the answer should not be included in the inputs, as they will be
         # generated and checked afterwards.
-        include_answer=not cfg.grpo,
+        include_answer=not cfg.trainer == "grpo",
     )
     train_sampler = (
         DistributedSampler(train_dataset, num_replicas=num_processes, shuffle=True)
