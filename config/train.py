@@ -38,6 +38,10 @@ class TrainConfig(ConfigEntry):
     # For validation, the first one in the list will always be used.
     # Structure: {"system": [], "question": []}
     prompts: Path | None = field(default=None, alias="-p")
+    # Beginning of the response of the assistant, which is prefilled when generating
+    # answers. For example, starting a message with <reasoning>, which forces the
+    # assistant to continue inside this XML tag.
+    prefill: str | None = None
     # Which kind of Trainer to use.
     # - `instruct`: SFT with instruction formats.
     # - `grpo`: Group Relative Policy Optimisation (GRPO).

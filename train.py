@@ -82,6 +82,9 @@ def main() -> None:
         # With GRPO, the answer should not be included in the inputs, as they will be
         # generated and checked afterwards.
         include_answer=not cfg.trainer == "grpo",
+        # Only use the prefill for the training if GRPO is used, as this generates the
+        # responsens, otherwise the answer is already given in full.
+        prefill=cfg.prefill if cfg.trainer == "grpo" else None,
     )
     train_sampler = (
         DistributedSampler(train_dataset, num_replicas=num_processes, shuffle=True)
@@ -111,7 +114,11 @@ def main() -> None:
     )
 
     validation_collator = InstructCollator(
-        processor=validation_processor, include_answer=False
+        processor=validation_processor,
+        include_answer=False,
+        # During the validation, the prefill is always used, regardless of which trainer
+        # was used.
+        prefill=cfg.prefill,
     )
     validation_sampler = (
         DistributedSampler(

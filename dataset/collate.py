@@ -23,6 +23,7 @@ class InstructCollator:
         ignore_index: int = -100,
         assistant_only: bool = True,
         include_answer: bool = True,
+        prefill: str | None = None,
     ):
         """
         Args:
@@ -35,6 +36,8 @@ class InstructCollator:
                 for inference / validation.
                 [Default: True]
         """
+        if include_answer and prefill is not None:
+            raise ValueError("Cannot use `prefill` together with `include_answer=True`")
         self.processor = processor
         self.padding_token_ids = vision_utils.get_padding_tokens_ids(self.processor)
         self.ignore_index = ignore_index
@@ -44,14 +47,19 @@ class InstructCollator:
             else None
         )
         self.include_answer = include_answer
+        self.prefill = prefill
 
     def __call__(self, samples: list[InstructSample]) -> Batch:
         messages = [
             self.processor.apply_chat_template(
                 # HuggingFace got the type annotations wrong of the chat messages.
-                sample.as_chat(include_answer=self.include_answer),  # pyright: ignore[reportArgumentType]
+                sample.as_chat(
+                    include_answer=self.include_answer,  # pyright: ignore[reportArgumentType]
+                    prefill=self.prefill,
+                ),
                 tokenize=False,
-                add_generation_prompt=not self.include_answer,
+                add_generation_prompt=not self.include_answer and self.prefill is None,
+                continue_final_message=self.prefill is not None,
             )
             for sample in samples
         ]

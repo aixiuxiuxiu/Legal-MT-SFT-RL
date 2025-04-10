@@ -88,12 +88,19 @@ class InstructSample:
         return cls(messages=messages, answer=answer, info=dict(path=path))
 
     def as_chat(
-        self, include_answer: bool = True
+        self,
+        include_answer: bool = True,
+        prefill: str | None = None,
     ) -> list[dict[str, str | list[dict[str, str]]]]:
+        if include_answer and prefill is not None:
+            raise ValueError("Cannot use `prefill` together with `include_answer=True`")
         messages = [msg.as_chat() for msg in self.messages]
         if include_answer:
             answer = ChatMessage.from_inputs([self.answer], role="assistant")
             messages.append(answer.as_chat())
+        if prefill:
+            start_of_answer = ChatMessage.from_inputs([prefill], role="assistant")
+            messages.append(start_of_answer.as_chat())
         return messages
 
     def get_images(self) -> list[Image.Image]:

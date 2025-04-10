@@ -39,7 +39,9 @@ def main() -> None:
         first_prompt_only=True,
         image_resizer=cfg.image.create_resizer(),
     )
-    collator = InstructCollator(processor=processor, include_answer=False)
+    collator = InstructCollator(
+        processor=processor, include_answer=False, prefill=cfg.prefill
+    )
     data_loader = DataLoader(
         dataset,
         batch_size=cfg.hardware.batch_size,
