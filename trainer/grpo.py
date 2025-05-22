@@ -10,15 +10,13 @@ from unsloth import FastVisionModel
 from config.grpo import GrpoScale
 from dataset.batch import Batch, GroupedBatch
 from dist import sync_dict_values
-from metric.functional import classification_accuracy
 from metric.metrics import CLASS_ACCURACY, CLASS_ACCURACY_UNCASED, TRAIN_LOSS, Metric
 from metric.tracker import MetricTracker
 from reward import ClassificationReward, StructureReward
-from reward.classification import extract_answer
 from trainer.utils import set_sampler_epoch
 
 from .base import BaseTrainer
-from .result import TrainOutput, TrainResult, ValidationOutput
+from .result import TrainOutput, TrainResult
 
 
 class GrpoTrainer(BaseTrainer):
@@ -41,8 +39,6 @@ class GrpoTrainer(BaseTrainer):
         num_generations: int = 8,
         top_p: float = 0.92,
         temperature: float = 0.6,
-        max_new_tokens: int | None = None,
-        ignore_index: int = -100,
         metrics: list[Metric] = [CLASS_ACCURACY, CLASS_ACCURACY_UNCASED, TRAIN_LOSS],
         reward_fns: list = [
             StructureReward(
@@ -66,12 +62,11 @@ class GrpoTrainer(BaseTrainer):
         self.num_generations = num_generations
         self.top_p = top_p
         self.temperature = temperature
-        self.max_new_tokens = max_new_tokens
-        self.ignore_index = ignore_index
         self.reward_fns = reward_fns
         self.kl_weight = kl_weight
         self.clip_range = clip_range
         self.scale_rewards = scale_rewards
+
 
     @torch.no_grad()
     def generate_completions(self, batch: Batch, num: int = 1) -> GroupedBatch:
@@ -184,6 +179,7 @@ class GrpoTrainer(BaseTrainer):
                 tokeniser.decode(comp, skip_special_tokens=True)
                 for comp in completion_ids
             ]
+            completion_strs = self._prefix_with_prefill(completion_strs)
             generated_batches.append(new_data)
             generated_completion_strs.append(completion_strs)
         return GroupedBatch.from_generations(
@@ -325,35 +321,5 @@ class GrpoTrainer(BaseTrainer):
             metrics=dict(
                 loss=loss.item(),
             ),
-            info=batch.info,
-        )
-
-    def predict(self, batch: Batch) -> ValidationOutput:
-        inputs = batch.data.to(self.hardware.device)
-        unwrapped_model = self.unwrap_model()
-        tokeniser = self.unwrap_tokeniser()
-        outputs = unwrapped_model.generate(  # pyright: ignore[reportCallIssue]
-            **inputs,
-            max_new_tokens=self.max_new_tokens,
-            pad_token_id=tokeniser.pad_token_id,
-        )
-        preds = [
-            tokeniser.decode(out[input_ids.size(0) :], skip_special_tokens=True)
-            for input_ids, out in zip(inputs.input_ids, outputs)
-        ]
-        pred_answers = [extract_answer(pred) or "" for pred in preds]
-        return ValidationOutput(
-            metrics=dict(
-                accuracy={
-                    "class": classification_accuracy(
-                        pred_answers, batch.answers, ignore_case=False
-                    ),
-                    "class_uncased": classification_accuracy(
-                        pred_answers, batch.answers, ignore_case=True
-                    ),
-                },
-            ),
-            preds=preds,
-            target=batch.answers,
             info=batch.info,
         )

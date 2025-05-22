@@ -22,8 +22,10 @@ from metric import (
     Metric,
     MetricTracker,
 )
+from metric.functional import classification_accuracy
 from metric.table import table_from_metrics
 from model.utils import unwrap_model, unwrap_tokeniser
+from reward.classification import extract_answer
 from utils import nested_dict
 from utils.hardware import HardwareManager
 
@@ -71,6 +73,9 @@ class BaseTrainer(ABC):
         lr_scheduler: BaseLrScheduler | None = None,
         max_grad_norm: float = 1.0,
         num_epochs: int = 10,
+        max_new_tokens: int | None = None,
+        ignore_index: int = -100,
+        prefill: str | None = None,
         wandb: WandbRun | None = None,
         console: Console = Console(),
     ):
@@ -82,7 +87,10 @@ class BaseTrainer(ABC):
         self.lr_scheduler = lr_scheduler
         self.max_grad_norm = max_grad_norm
         self.num_epochs = num_epochs
+        self.max_new_tokens = max_new_tokens
+        self.ignore_index = ignore_index
         self.metrics = metrics
+        self.prefill = prefill
         self.wandb = wandb
         self.console = console
         self.progress = TrainerProgress(num_epochs=num_epochs, console=console)
@@ -112,6 +120,12 @@ class BaseTrainer(ABC):
             if self.lr_scheduler
             else self.optimiser.param_groups[0]["lr"]
         )
+
+    def _prefix_with_prefill(self, completion_strs: list[str]) -> list[str]:
+        if self.prefill is None:
+            return completion_strs
+        else:
+            return [self.prefill + comp_str for comp_str in completion_strs]
 
     def _epoch_text(self, epoch: int, desc: str | None = None) -> str:
         current = epoch + 1
@@ -237,9 +251,36 @@ class BaseTrainer(ABC):
         # of the gradients since they are now set to None.
         self.optimiser.zero_grad()
 
-    @abstractmethod
     def predict(self, batch: Batch) -> ValidationOutput:
-        raise NotImplementedError("predict method is not implemented")
+        inputs = batch.data.to(self.hardware.device)
+        unwrapped_model = self.unwrap_model()
+        tokeniser = self.unwrap_tokeniser()
+        outputs = unwrapped_model.generate(  # pyright: ignore[reportCallIssue]
+            **inputs,
+            max_new_tokens=self.max_new_tokens,
+            pad_token_id=tokeniser.pad_token_id,
+        )
+        preds = [
+            tokeniser.decode(out[input_ids.size(0) :], skip_special_tokens=True)
+            for input_ids, out in zip(inputs.input_ids, outputs)
+        ]
+        preds = self._prefix_with_prefill(preds)
+        pred_answers = [extract_answer(pred) or pred for pred in preds]
+        return ValidationOutput(
+            metrics=dict(
+                accuracy={
+                    "class": classification_accuracy(
+                        pred_answers, batch.answers, ignore_case=False
+                    ),
+                    "class_uncased": classification_accuracy(
+                        pred_answers, batch.answers, ignore_case=True
+                    ),
+                },
+            ),
+            preds=preds,
+            target=batch.answers,
+            info=batch.info,
+        )
 
     def save_pretrained(self, name: str) -> Path:
         path = self.save_dir / name

@@ -202,6 +202,7 @@ def main() -> None:
                 max_new_tokens=512,
                 max_grad_norm=0.3,
                 num_epochs=cfg.num_epochs,
+                prefill=cfg.prefill,
             )
         case "grpo":
             trainer = GrpoTrainer(
@@ -223,6 +224,7 @@ def main() -> None:
                 kl_weight=cfg.grpo.kl_weight,
                 temperature=cfg.grpo.temperature,
                 top_p=cfg.grpo.top_p,
+                prefill=cfg.prefill,
             )
 
     trainer.train(
