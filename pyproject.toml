@@ -89,7 +89,6 @@ triton = { git = "https://github.com/triton-lang/triton", subdirectory = "python
 # FIXME: Get rid of rev once unsloth is not botched anymore. (No idea what the issue is now)
 unsloth = { git = "https://github.com/unslothai/unsloth.git" }
 unsloth-zoo = { git = "https://github.com/unslothai/unsloth-zoo.git" }
-transformers = { git = "https://github.com/huggingface/transformers.git" }
 xformers = { git = "https://github.com/facebookresearch/xformers", tag = "v0.0.29.post3", marker = "platform_machine == 'aarch64'" }
 
 [[tool.uv.index]]
