@@ -20,6 +20,9 @@ def tokenise_chat(
         tokenize=True,
         add_generation_prompt=add_generation_prompt,
     )
+    # Ensure it is a list, because some processors seem to always provide a tensor.
+    if isinstance(tokens, torch.Tensor):
+        tokens = tokens.tolist()
     assert isinstance(tokens, list) and isinstance(tokens[0], list), (
         "Tokenised messages are not a batch of tokens (list[list[int]])"
     )
