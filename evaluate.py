@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 import torch
-from rich.progress import track
+from progrich import ProgressBar
 from torch.utils.data import DataLoader
 
 from config.evaluate import EvaluateConfig
@@ -65,37 +65,40 @@ def main() -> None:
 
     tokeniser = unwrap_tokeniser(processor)
     metrics = MetricTracker([CLASS_ACCURACY, CLASS_ACCURACY_UNCASED])
-    # TODO: Customised progress bar
-    for batch in track(data_loader, description="Evaluating"):
-        inputs = batch.data.to(hardware_manager.device)
-        with hardware_manager.autocast():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=cfg.max_new_tokens,
-                pad_token_id=tokeniser.pad_token_id,
+    with ProgressBar("Evaluating", total=len(dataset), persist=True) as pbar:
+        for batch in data_loader:
+            # The last batch may not be a full batch
+            curr_batch_size = batch.data["input_ids"].size(0)
+            inputs = batch.data.to(hardware_manager.device)
+            with hardware_manager.autocast():
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=cfg.max_new_tokens,
+                    pad_token_id=tokeniser.pad_token_id,
+                )
+            preds = [
+                tokeniser.decode(out[input_ids.size(0) :], skip_special_tokens=True)
+                for input_ids, out in zip(inputs.input_ids, outputs)
+            ]
+            pred_answers = [extract_answer(pred) or pred for pred in preds]
+            metrics.append(
+                dict(
+                    accuracy={
+                        "class": classification_accuracy(
+                            pred_answers, batch.answers, ignore_case=False
+                        ),
+                        "class_uncased": classification_accuracy(
+                            pred_answers, batch.answers, ignore_case=True
+                        ),
+                    },
+                )
             )
-        preds = [
-            tokeniser.decode(out[input_ids.size(0) :], skip_special_tokens=True)
-            for input_ids, out in zip(inputs.input_ids, outputs)
-        ]
-        pred_answers = [extract_answer(pred) or pred for pred in preds]
-        metrics.append(
-            dict(
-                accuracy={
-                    "class": classification_accuracy(
-                        pred_answers, batch.answers, ignore_case=False
-                    ),
-                    "class_uncased": classification_accuracy(
-                        pred_answers, batch.answers, ignore_case=True
-                    ),
-                },
-            )
-        )
 
-        for pred, pred_answer, answer, path in zip(
-            preds, pred_answers, batch.answers, batch.info["path"]
-        ):
-            writer.writerow([path.stem, pred_answer, answer, pred])
+            for pred, pred_answer, answer, path in zip(
+                preds, pred_answers, batch.answers, batch.info["path"]
+            ):
+                writer.writerow([path.stem, pred_answer, answer, pred])
+            pbar.advance(curr_batch_size)
 
     mean_metrics = metrics.mean()
     print(mean_metrics)

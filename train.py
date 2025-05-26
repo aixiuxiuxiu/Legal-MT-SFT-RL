@@ -41,6 +41,10 @@ def main() -> None:
         dist.init_process_group(backend="nccl")
         is_main = dist.get_rank() == 0
 
+    # Only keep the console output on the main process
+    console = Console(quiet=not is_main)
+    Manager.default().set_console(console)
+
     hardware_manager = cfg.hardware.create_manager()
 
     model, processor = vision.create_lora_model(
@@ -196,7 +200,7 @@ def main() -> None:
                 save_dir=cfg.get_log_dir(base_dir=log_dir),
                 wandb=run,
                 # Suppress the output of other processes
-                console=Console(quiet=not is_main),
+                console=console,
                 hardware=hardware_manager,
                 lr_scheduler=lr_scheduler,
                 max_new_tokens=512,
@@ -212,7 +216,7 @@ def main() -> None:
                 save_dir=cfg.get_log_dir(base_dir=log_dir),
                 wandb=run,
                 # Suppress the output of other processes
-                console=Console(quiet=not is_main),
+                console=console,
                 hardware=hardware_manager,
                 lr_scheduler=lr_scheduler,
                 max_new_tokens=512,

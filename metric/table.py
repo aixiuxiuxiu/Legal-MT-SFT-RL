@@ -1,10 +1,10 @@
+from progrich.fmt import format_duration
 from rich import box
 from rich.table import Table
 
 from lr_scheduler.base import BaseLrScheduler
 from trainer.result import TrainResult, ValidationResult
 from utils import nested_dict
-from utils.fmt import format_duration
 from utils.nested_dict import NestedDict
 
 from .metrics import Metric

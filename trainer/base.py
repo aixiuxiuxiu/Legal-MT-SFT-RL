@@ -7,6 +7,7 @@ from typing import Self
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from progrich import ProgressBar, Spinner
 from rich.console import Console
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
@@ -29,7 +30,6 @@ from reward.classification import extract_answer
 from utils import nested_dict
 from utils.hardware import HardwareManager
 
-from .progress import TrainerProgress
 from .result import (
     Example,
     TrainOutput,
@@ -93,7 +93,10 @@ class BaseTrainer(ABC):
         self.prefill = prefill
         self.wandb = wandb
         self.console = console
-        self.progress = TrainerProgress(num_epochs=num_epochs, console=console)
+        # The progress bar is defined here because the second progress bar
+        # (train/validation) needs to be attached to this one, which take place in two
+        # different methods.
+        self.progress = ProgressBar("Total", total=num_epochs, persist=True)
         self.example_table = Table(columns=["epoch", "path", "pred", "target"])
 
         best_metric = None
@@ -149,21 +152,36 @@ class BaseTrainer(ABC):
         # But for the first step it needs to be done manually.
         self.optimiser.zero_grad()
 
+        losses = []
         start_time = time.time()
         metrics = MetricTracker(self.metrics, when="train")
-        self.progress.start(
-            "train",
+        pbar = ProgressBar(
+            "Train",
             total=len(data_loader.dataset),  # pyright: ignore[reportArgumentType]
+            prefix=f"Epoch {epoch + 1} -",
+            # Attach it to the total progress bar.
+            progress=self.progress,
         )
+        pbar.start()
+        i = 0
+        spinner = Spinner("Waiting for results of first batch...")
+        spinner.start()
         for batch in data_loader:
+            i += 1
             # The last batch may not be a full batch
             curr_batch_size = batch.data["input_ids"].size(0)
             with self.hardware.autocast():
                 output = self.forward(batch)
             self.backward(output.loss)
             metrics.append(output.metrics)
-            self.progress.advance("train", num=curr_batch_size * num_replicas)
-        self.progress.stop("train")
+            losses.append(output.loss.item())
+            spinner.update(
+                f"Current Batch: {batch.data['input_ids'].size()} • Loss {losses[-1]} • Avg loss {torch.mean(torch.tensor(losses, dtype=torch.float))}"
+            )
+
+            pbar.advance(curr_batch_size * num_replicas)
+        spinner.stop()
+        pbar.stop()
 
         mean_metrics = metrics.mean()
         # Gather the metrics onto the primary process
@@ -184,18 +202,22 @@ class BaseTrainer(ABC):
 
         start_time = time.time()
         metrics = MetricTracker(self.metrics, when="validation")
-        self.progress.start(
-            "validation",
+        pbar = ProgressBar(
+            "Validation",
             total=len(data_loader.dataset),  # pyright: ignore[reportArgumentType]
+            prefix=f"Epoch {epoch + 1} -",
+            # Attach it to the total progress bar.
+            progress=self.progress,
         )
+        pbar.start()
         for batch in data_loader:
             # The last batch may not be a full batch
             curr_batch_size = batch.data["input_ids"].size(0)
             with self.hardware.autocast():
                 output = self.predict(batch)
             metrics.append(output.metrics)
-            self.progress.advance("validation", num=curr_batch_size * num_replicas)
-        self.progress.stop("validation")
+            pbar.advance(curr_batch_size * num_replicas)
+        pbar.stop()
 
         mean_metrics = metrics.mean()
         # Gather the metrics onto the primary process
@@ -305,15 +327,19 @@ class BaseTrainer(ABC):
     ):
         best_metric_value = None
         with self.progress:
+            epoch_pad = len(str(self.num_epochs))
             for epoch in range(self.num_epochs):
                 start_time = time.time()
+                self.progress.update(
+                    prefix=f"\\[{epoch + 1:>{epoch_pad}}/{self.num_epochs}]"
+                )
                 train_result = self.train_epoch(train_data_loader, epoch=epoch)
 
                 validation_result = self.validation_epoch(
                     validation_data_loader, epoch=epoch
                 )
 
-                with self.progress.spinner("Saving model and tokeniser"):
+                with Spinner("Saving model and tokeniser"):
                     self.save_pretrained("latest")
                     current_metric = nested_dict.get_recursive(
                         validation_result.metrics, self.best_metric.key
@@ -331,7 +357,7 @@ class BaseTrainer(ABC):
                         self.save_pretrained("best")
 
                 if self.wandb:
-                    with self.progress.spinner("Logging to Weights & Biases"):
+                    with Spinner("Logging to Weights & Biases"):
                         for example in validation_result.examples:
                             # Adding the row to the table, because only the most recent
                             # one is shown in the wandb interface, but it should be easy
@@ -370,7 +396,7 @@ class BaseTrainer(ABC):
                         f"{self.best_metric.name} = {best_metric_value:.5f} {icon}"
                     )
 
-                self.progress.end_epoch()
+                self.progress.advance()
             if self.wandb:
                 # Log the example over time in a table. wandb does not support updating
                 # the table at each epoch, but only a "summary", so the whole table

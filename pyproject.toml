@@ -9,6 +9,7 @@ dependencies = [
     "bitsandbytes>=0.45.2; platform_machine != 'aarch64'",
     "hf-transfer>=0.1.9",
     "peft>=0.14.0",
+    "progrich>=0.1.0",
     "rich>=13.9.4",
     "simple-parsing>=0.1.7",
     "torch>=2.6.0",

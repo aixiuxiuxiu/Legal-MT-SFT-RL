@@ -2,6 +2,7 @@ import copy
 import time
 
 import torch
+from progrich import ProgressBar, Spinner
 from torch.utils.data import DataLoader
 from transformers import BatchEncoding
 from trl.trainer.utils import selective_log_softmax
@@ -121,6 +122,8 @@ class GrpoTrainer(BaseTrainer):
         tokeniser = self.unwrap_tokeniser()
         generated_batches: list[BatchEncoding] = []
         generated_completion_strs: list[list[str]] = []
+        spinner = Spinner("Waiting for generation...")
+        spinner.start()
         for i in range(num):
             outputs = unwrapped_model.generate(  # pyright: ignore[reportCallIssue]
                 **inputs,
@@ -182,6 +185,10 @@ class GrpoTrainer(BaseTrainer):
             completion_strs = self._prefix_with_prefill(completion_strs)
             generated_batches.append(new_data)
             generated_completion_strs.append(completion_strs)
+            spinner.update(
+                f"Generated completions [{i + 1} / {num}] • {completion_strs[0]}"
+            )
+        spinner.stop()
         return GroupedBatch.from_generations(
             batches=generated_batches,
             completions=generated_completion_strs,
@@ -213,10 +220,14 @@ class GrpoTrainer(BaseTrainer):
             case "none":
                 reward_scale = None
         metrics = MetricTracker(self.metrics, when="train")
-        self.progress.start(
-            "train",
+        pbar = ProgressBar(
+            "Train",
             total=len(data_loader.dataset),  # pyright: ignore[reportArgumentType]
+            prefix=f"Epoch {epoch + 1} -",
+            # Attach it to the total progress bar.
+            progress=self.progress,
         )
+        pbar.start()
         losses = []
         i = 0
         for batch in data_loader:
@@ -227,6 +238,8 @@ class GrpoTrainer(BaseTrainer):
                 generated = self.generate_completions(batch, num=self.num_generations)
             gen_metrics = MetricTracker(self.metrics, when="train")
             j = 0
+            spinner = Spinner("Waiting for results of first batch of generations...")
+            spinner.start()
             for gen_batch in generated.iter_batches(
                 self.reward_fns, scale=reward_scale
             ):
@@ -236,13 +249,13 @@ class GrpoTrainer(BaseTrainer):
                 self.backward(output.loss)
                 gen_metrics.append(output.metrics)
                 losses.append(output.loss.item())
-                self.progress.start_spinner(
+                spinner.update(
                     f"Current Batch {i} [Generation: {j} / {self.num_generations}]: {gen_batch.data['input_ids'].size()} • Loss {losses[-1]} • Avg loss {torch.mean(torch.tensor(losses, dtype=torch.float))}"
                 )
             metrics.append(gen_metrics.mean())
-            self.progress.advance("train", num=curr_batch_size * num_replicas)
-        self.progress.stop_spinner()
-        self.progress.stop("train")
+            pbar.advance(curr_batch_size * num_replicas)
+            spinner.stop()
+        pbar.stop()
 
         mean_metrics = metrics.mean()
         # Gather the metrics onto the primary process

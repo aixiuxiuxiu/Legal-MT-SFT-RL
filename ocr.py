@@ -2,11 +2,7 @@ import os
 from pathlib import Path
 
 import torch
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TextColumn,
-)
+from progrich import ProgressBar
 from torch.utils.data import DataLoader
 from unsloth import FastVisionModel
 
@@ -14,12 +10,6 @@ from config.ocr import OcrConfig
 from dataset import InstructDataset
 from dataset.collate import InstructCollator
 from model.utils import unwrap_tokeniser
-from trainer.progress_columns import (
-    CompletionRatioColumn,
-    ElapsedColumn,
-    ETAColumn,
-    SpeedColumn,
-)
 
 
 @torch.inference_mode()
@@ -63,28 +53,11 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     tokeniser = unwrap_tokeniser(processor)
-    pbar = Progress(
-        TextColumn("[progress.description]{task.description}"),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-        BarColumn(
-            bar_width=None,
-            style="dim",
-            complete_style="none",
-        ),
-        CompletionRatioColumn(),
-        TextColumn("[dim]•[/dim]"),
-        ElapsedColumn(),
-        TextColumn("[dim]•[/dim]"),
-        ETAColumn(human_readable="always"),
-        TextColumn("[dim]•[/dim]"),
-        SpeedColumn(),
-    )
-    task = pbar.add_task("Extracting Text (OCR)", total=len(dataset))
-    with pbar:
+    with ProgressBar("Extracting Text (OCR)", total=len(dataset), persist=True) as pbar:
         for batch in data_loader:
             # The last batch may not be a full batch
             curr_batch_size = batch.data["input_ids"].size(0)
-            inputs = batch.data.to("cuda")
+            inputs = batch.data.to(hardware_manager.device)
             with hardware_manager.autocast():
                 outputs = model.generate(
                     **inputs,
@@ -101,7 +74,7 @@ def main():
                     out_dir / path.with_suffix(".md").name, "w", encoding="utf-8"
                 ) as fd:
                     fd.write(pred)
-            pbar.advance(task, curr_batch_size)
+            pbar.advance(curr_batch_size)
 
 
 if __name__ == "__main__":
