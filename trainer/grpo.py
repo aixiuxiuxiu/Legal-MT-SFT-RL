@@ -68,7 +68,6 @@ class GrpoTrainer(BaseTrainer):
         self.clip_range = clip_range
         self.scale_rewards = scale_rewards
 
-
     @torch.no_grad()
     def generate_completions(self, batch: Batch, num: int = 1) -> GroupedBatch:
         """
@@ -250,7 +249,10 @@ class GrpoTrainer(BaseTrainer):
                 gen_metrics.append(output.metrics)
                 losses.append(output.loss.item())
                 spinner.update(
-                    f"Current Batch {i} [Generation: {j} / {self.num_generations}]: {gen_batch.data['input_ids'].size()} • Loss {losses[-1]} • Avg loss {torch.mean(torch.tensor(losses, dtype=torch.float))}"
+                    f"Current Batch {i} [Generation: {j} / {self.num_generations}]: "
+                    f"{gen_batch.data['input_ids'].size()} • "  # pyright: ignore[reportAttributeAccessIssue]
+                    f"Loss {losses[-1]} • "
+                    f"Avg loss {torch.mean(torch.tensor(losses, dtype=torch.float))}"
                 )
             metrics.append(gen_metrics.mean())
             pbar.advance(curr_batch_size * num_replicas)

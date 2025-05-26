@@ -2,6 +2,8 @@ import copy
 import os
 from pathlib import Path
 
+from progrich import Manager
+
 from config.train import TrainConfig
 
 # ruff: noqa: E402 (Disable import at top lint, because of this workaround)
