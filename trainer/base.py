@@ -16,6 +16,7 @@ from wandb import Table
 from wandb.sdk.wandb_run import Run as WandbRun
 
 from dataset.batch import Batch
+from dataset.prefill import prefix_completions_with_prefill
 from debugger import breakpoint
 from dist import is_main, sync_dict_values
 from lr_scheduler import BaseLrScheduler
@@ -123,12 +124,6 @@ class BaseTrainer(ABC):
             if self.lr_scheduler
             else self.optimiser.param_groups[0]["lr"]
         )
-
-    def _prefix_with_prefill(self, completion_strs: list[str]) -> list[str]:
-        if self.prefill is None:
-            return completion_strs
-        else:
-            return [self.prefill + comp_str for comp_str in completion_strs]
 
     def _epoch_text(self, epoch: int, desc: str | None = None) -> str:
         current = epoch + 1
@@ -286,7 +281,7 @@ class BaseTrainer(ABC):
             tokeniser.decode(out[input_ids.size(0) :], skip_special_tokens=True)
             for input_ids, out in zip(inputs.input_ids, outputs)
         ]
-        preds = self._prefix_with_prefill(preds)
+        preds = prefix_completions_with_prefill(preds, prefill=self.prefill)
         pred_answers = [extract_answer(pred) or pred for pred in preds]
         return ValidationOutput(
             metrics=dict(

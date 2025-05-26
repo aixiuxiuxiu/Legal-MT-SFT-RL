@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from config.evaluate import EvaluateConfig
 from dataset import InstructDataset
 from dataset.collate import InstructCollator
+from dataset.prefill import prefix_completions_with_prefill
 from metric import MetricTracker
 from metric.functional import classification_accuracy
 from metric.metrics import CLASS_ACCURACY, CLASS_ACCURACY_UNCASED
@@ -80,6 +81,7 @@ def main() -> None:
                 tokeniser.decode(out[input_ids.size(0) :], skip_special_tokens=True)
                 for input_ids, out in zip(inputs.input_ids, outputs)
             ]
+            preds = prefix_completions_with_prefill(preds, prefill=cfg.prefill)
             pred_answers = [extract_answer(pred) or pred for pred in preds]
             metrics.append(
                 dict(

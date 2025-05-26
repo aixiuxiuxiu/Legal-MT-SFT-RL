@@ -10,6 +10,7 @@ from unsloth import FastVisionModel
 
 from config.grpo import GrpoScale
 from dataset.batch import Batch, GroupedBatch
+from dataset.prefill import prefix_completions_with_prefill
 from dist import sync_dict_values
 from metric.metrics import CLASS_ACCURACY, CLASS_ACCURACY_UNCASED, TRAIN_LOSS, Metric
 from metric.tracker import MetricTracker
@@ -181,7 +182,9 @@ class GrpoTrainer(BaseTrainer):
                 tokeniser.decode(comp, skip_special_tokens=True)
                 for comp in completion_ids
             ]
-            completion_strs = self._prefix_with_prefill(completion_strs)
+            completion_strs = prefix_completions_with_prefill(
+                completion_strs, prefill=self.prefill
+            )
             generated_batches.append(new_data)
             generated_completion_strs.append(completion_strs)
             spinner.update(
