@@ -84,6 +84,7 @@ def main() -> None:
         cfg.train_data,
         processor=processor,
         prompts=cfg.prompts,
+        random_prompt_probability=cfg.random_prompt_probability,
         image_resizer=image_resizer,
     )
     train_collator = InstructCollator(
@@ -118,6 +119,7 @@ def main() -> None:
         cfg.validation_data,
         processor=validation_processor,
         prompts=cfg.prompts,
+        random_prompt_probability=0.0,
         first_prompt_only=True,
         image_resizer=image_resizer,
     )

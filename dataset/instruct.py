@@ -21,15 +21,19 @@ class PromptSelection:
     system: list[str] | None = None
     question: list[str] | None = None
     first_only: bool = False
+    probability: float = 0.0
 
     @classmethod
-    def from_json(cls, path: str | os.PathLike, first_only: bool = False) -> Self:
+    def from_json(
+        cls, path: str | os.PathLike, first_only: bool = False, probability: float = 0.0
+    ) -> Self:
         with open(path, "r", encoding="utf-8") as fd:
             data = json.load(fd)
         return cls(
             system=data.get("system"),
             question=data.get("question"),
             first_only=first_only,
+            probability=probability,
         )
 
     def _random_selection(self, prompts: list[str] | None) -> str | None:
@@ -40,11 +44,47 @@ class PromptSelection:
         index = int(torch.randint(len(prompts), size=(1,)))
         return prompts[index]
 
-    def random_system_prompt(self) -> str | None:
-        return self._random_selection(self.system)
+    def get_system_prompt(self, prompt: str | None = None) -> str | None:
+        """
+        Get the system prompt, which is either the one provided or a random one from the
+        available prompts. The provided one is chosen with the configured probability,
+        otherwise a random one is used. If no prompt is given, it will always use
+        a random one.
 
-    def random_question_prompt(self) -> str | None:
-        return self._random_selection(self.question)
+        Args:
+            prompt (str, optional): System prompt of the data point.
+
+        Returns:
+            out (str, optional): Chosen system prompt.
+        """
+        if prompt is None or torch.rand((1,)).item() < self.probability:
+            # It might be the case that there is no random prompt available, but it was
+            # supposed to be a random one, in which case revert to the given prompt,
+            # which may or may not be None.
+            return self._random_selection(self.system) or prompt
+        else:
+            return prompt
+
+    def get_question_prompt(self, prompt: str | None = None) -> str | None:
+        """
+        Get the question prompt, which is either the one provided or a random one from
+        the available prompts. The provided one is chosen with the configured
+        probability, otherwise a random one is used. If no prompt is given, it will
+        always use a random one.
+
+        Args:
+            prompt (str, optional): Question prompt of the data point.
+
+        Returns:
+            out (str, optional): Chosen question prompt.
+        """
+        if prompt is None or torch.rand((1,)).item() < self.probability:
+            # It might be the case that there is no random prompt available, but it was
+            # supposed to be a random one, in which case revert to the given prompt,
+            # which may or may not be None.
+            return self._random_selection(self.question) or prompt
+        else:
+            return prompt
 
 
 @dataclass
@@ -70,10 +110,10 @@ class InstructSample:
         with open(path, "r", encoding="utf-8") as fd:
             data = json.load(fd)
         messages = []
-        system = prompts.random_system_prompt() or data.get("system")
+        system = prompts.get_system_prompt(data.get("system"))
         if system:
             messages.append(ChatMessage.from_inputs([system], role="system"))
-        question = prompts.random_question_prompt() or data.get("question")
+        question = prompts.get_question_prompt(data.get("question"))
         assert question is not None, (
             f"Sample `{path}` does not contain `question`, nor were any "
             "additonal question prompts given to be randomly selected"
@@ -118,6 +158,7 @@ class InstructDataset(Dataset):
         path: str | os.PathLike,
         processor: PreTrainedTokenizerBase,
         prompts: str | os.PathLike | None = None,
+        random_prompt_probability: float = 0.0,
         first_prompt_only: bool = False,
         ignore_index: int = -100,
         image_resizer: ImageResizer = ImageResizer(),
@@ -133,6 +174,9 @@ class InstructDataset(Dataset):
                 prompts for system/question, which will be randomly sampled to get some
                 variation in the data.
                 Structure of the JSON: {{"system": [], "question": []}}
+            random_prompt_probability (float): Probability to use a random prompt
+                instead of the one from the data point. For data points without
+                a prompt, it will always take a random prompt. [Default: 0.0]
             first_prompt_only (bool): Whether to only use the first prompt from the
                 prompt selection. Helpful for the validation, so that the prompt remains
                 consistent. [Default: False]
@@ -157,9 +201,15 @@ class InstructDataset(Dataset):
                 reader = csv.reader(fd, delimiter="\t")
                 self.files = [self.dir / line[0] for line in reader]
         self.prompt_selection = (
-            PromptSelection.from_json(prompts, first_only=self.first_prompt_only)
+            PromptSelection.from_json(
+                prompts,
+                first_only=self.first_prompt_only,
+                probability=random_prompt_probability,
+            )
             if prompts
-            else PromptSelection(first_only=self.first_prompt_only)
+            else PromptSelection(
+                first_only=self.first_prompt_only, probability=random_prompt_probability
+            )
         )
         self.image_resizer = image_resizer
 

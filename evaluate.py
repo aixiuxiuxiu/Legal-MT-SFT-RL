@@ -37,6 +37,7 @@ def main() -> None:
         cfg.data,
         processor=processor,
         prompts=cfg.prompts,
+        random_prompt_probability=0.0,
         first_prompt_only=True,
         image_resizer=cfg.image.create_resizer(),
     )

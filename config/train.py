@@ -38,6 +38,11 @@ class TrainConfig(ConfigEntry):
     # For validation, the first one in the list will always be used.
     # Structure: {"system": [], "question": []}
     prompts: Path | None = field(default=None, alias="-p")
+    # Probability to use a random prompt instead of the one from the data point. For
+    # data points without a prompt, it will always take a random prompt. Must provide
+    # the --prompts option for this option to have any effect.
+    # Only applies to the training set, not the validation set.
+    random_prompt_probability: float = 0.5
     # Beginning of the response of the assistant, which is prefilled when generating
     # answers. For example, starting a message with <reasoning>, which forces the
     # assistant to continue inside this XML tag.
