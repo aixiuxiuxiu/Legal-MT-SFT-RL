@@ -64,12 +64,13 @@ class InstructCollator:
             for sample in samples
         ]
         images = [sample.get_images() for sample in samples]
+        has_images = any(len(imgs) > 0 for imgs in images)
 
         batch = self.processor(
             # That type might be wrong because processor may be different from the
             # tokeniser (as there is no actual base class for the processor to use).
             text=messages,  # pyright: ignore[reportArgumentType]
-            images=images,
+            images=images if has_images else None,
             padding=True,
             return_tensors="pt",
         )
