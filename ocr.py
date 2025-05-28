@@ -4,7 +4,7 @@ from pathlib import Path
 import torch
 from progrich import ProgressBar
 from torch.utils.data import DataLoader
-from unsloth import FastVisionModel
+from unsloth import FastModel
 
 from config.ocr import OcrConfig
 from dataset import InstructDataset
@@ -20,17 +20,18 @@ def main():
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
     hardware_manager = cfg.hardware.create_manager()
-    model, processor = FastVisionModel.from_pretrained(
+    model, processor = FastModel.from_pretrained(
         cfg.model,
         load_in_4bit=False,
         # Set this to get the full precision model, otherwise unsloth just decides to
         # use a 4bit version of QLoRA.
         full_finetuning=True,
     )
-    processor.tokenizer.padding_side = "left"  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+    tokeniser = unwrap_tokeniser(processor)
+    tokeniser.padding_side = "left"
     # model = model.to(hardware_manager.device)
     model = model.eval()
-    FastVisionModel.for_inference(model)
+    FastModel.for_inference(model)
     dataset = InstructDataset(
         cfg.data,
         processor=processor,
@@ -52,7 +53,6 @@ def main():
     out_dir = cfg.out_dir / cp_name
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    tokeniser = unwrap_tokeniser(processor)
     with ProgressBar("Extracting Text (OCR)", total=len(dataset), persist=True) as pbar:
         for batch in data_loader:
             # The last batch may not be a full batch

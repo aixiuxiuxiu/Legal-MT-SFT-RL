@@ -4,6 +4,8 @@ from typing import Self
 import torch
 from transformers import PreTrainedTokenizerBase
 
+from model.utils import unwrap_tokeniser
+
 from .messages import ChatMessage
 
 
@@ -97,14 +99,7 @@ class MessageBoundaries:
         start = with_assistant_start[len(system_only) :]
         end = with_assistant[len(with_assistant_start) :]
 
-        # FIXME: Fix this type annotation for Image/Text processors.
-        # But this is at least safe.
-        tokeniser = (
-            processor.tokenizer
-            if hasattr(processor, "tokenizer")
-            and isinstance(processor.tokenizer, PreTrainedTokenizerBase)
-            else processor
-        )
+        tokeniser = unwrap_tokeniser(processor)
 
         # Remove the trailing whitespace of the end, as there is often a new line at the
         # end, that would only be there if there were another message, as the generation

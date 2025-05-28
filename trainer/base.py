@@ -11,7 +11,7 @@ from progrich import ProgressBar, Spinner
 from rich.console import Console
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
-from unsloth import FastVisionModel
+from unsloth import FastModel
 from wandb import Table
 from wandb.sdk.wandb_run import Run as WandbRun
 
@@ -138,7 +138,7 @@ class BaseTrainer(ABC):
         torch.set_grad_enabled(True)
         self.model.train()
         # Needed to revert the inference mode.
-        FastVisionModel.for_training(self.unwrap_model())
+        FastModel.for_training(self.unwrap_model())
         num_replicas = set_sampler_epoch(data_loader, epoch=epoch)
         # Zeroing out the gradients here, because during the backward pass the zeroing
         # happens at the end, which saves the memory from it since the
@@ -192,7 +192,7 @@ class BaseTrainer(ABC):
         torch.set_grad_enabled(False)
         self.model.eval()
         # This is needed, otherwise some kv-cache issues occur.
-        FastVisionModel.for_inference(self.unwrap_model())
+        FastModel.for_inference(self.unwrap_model())
         num_replicas = set_sampler_epoch(data_loader, epoch=epoch)
 
         start_time = time.time()

@@ -5,6 +5,8 @@ from pathlib import Path
 from progrich import Manager
 
 from config.train import TrainConfig
+from model.loader import create_lora_model
+from model.utils import unwrap_tokeniser
 
 # ruff: noqa: E402 (Disable import at top lint, because of this workaround)
 # unsloth hardcodes "cuda:0" in an attempt to disallow multi-GPU as they want to
@@ -28,7 +30,6 @@ from wandb.sdk.wandb_run import Run as WandbRun
 
 from dataset import InstructDataset
 from dataset.collate import InstructCollator
-from model import vision
 from trainer import GrpoTrainer, InstructTrainer
 
 
@@ -49,7 +50,7 @@ def main() -> None:
 
     hardware_manager = cfg.hardware.create_manager()
 
-    model, processor = vision.create_lora_model(
+    model, processor = create_lora_model(
         cfg.model,
         rank=cfg.lora.rank,
         alpha=cfg.lora.calculate_alpha(),
@@ -70,11 +71,13 @@ def main() -> None:
     # as it generates the responses just like during validation. Whereas for the regular
     # training, during training it is usually right padded.
     if cfg.grpo:
-        processor.tokenizer.padding_side = "left"  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+        tokeniser = unwrap_tokeniser(processor)
+        tokeniser.padding_side = "left"
         validation_processor = processor
     else:
         validation_processor = copy.deepcopy(processor)
-        validation_processor.tokenizer.padding_side = "left"  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+        validation_tokeniser = unwrap_tokeniser(validation_processor)
+        validation_tokeniser.padding_side = "left"
 
     image_resizer = cfg.image.create_resizer()
     train_dataset = InstructDataset(

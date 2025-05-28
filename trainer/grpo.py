@@ -6,7 +6,7 @@ from progrich import ProgressBar, Spinner
 from torch.utils.data import DataLoader
 from transformers import BatchEncoding
 from trl.trainer.utils import selective_log_softmax
-from unsloth import FastVisionModel
+from unsloth import FastModel
 
 from config.grpo import GrpoScale
 from dataset.batch import Batch, GroupedBatch
@@ -204,7 +204,7 @@ class GrpoTrainer(BaseTrainer):
         torch.set_grad_enabled(True)
         self.model.train()
         # Needed to revert the inference mode.
-        FastVisionModel.for_training(self.unwrap_model())
+        FastModel.for_training(self.unwrap_model())
         num_replicas = set_sampler_epoch(data_loader, epoch=epoch)
         # Zeroing out the gradients here, because during the backward pass the zeroing
         # happens at the end, which saves the memory from it since the

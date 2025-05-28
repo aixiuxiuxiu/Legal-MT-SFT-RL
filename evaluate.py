@@ -14,7 +14,7 @@ from dataset.prefill import prefix_completions_with_prefill
 from metric import MetricTracker
 from metric.functional import classification_accuracy
 from metric.metrics import CLASS_ACCURACY, CLASS_ACCURACY_UNCASED
-from model import vision
+from model.loader import load_model_for_inference
 from model.utils import unwrap_tokeniser
 from reward.classification import extract_answer
 
@@ -27,7 +27,7 @@ def main() -> None:
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
     hardware_manager = cfg.hardware.create_manager()
-    model, processor = vision.load_model_for_inference(
+    model, processor = load_model_for_inference(
         cfg.model,
         pad_token=cfg.pad_token,
         device_map="auto" if cfg.hardware.split_model else None,

@@ -79,10 +79,12 @@ class InstructSample:
             "additonal question prompts given to be randomly selected"
         )
         image_path = data.get("image")
-        assert image_path is not None, f"Sample `{path}` does not contain `image`"
-        image = Image.open(path.parent / image_path).convert("RGB")
-        image = resizer(image)
-        messages.append(ChatMessage.from_inputs([image, question], role="user"))
+        if image_path is None:
+            messages.append(ChatMessage.from_inputs([question], role="user"))
+        else:
+            image = Image.open(path.parent / image_path).convert("RGB")
+            image = resizer(image)
+            messages.append(ChatMessage.from_inputs([image, question], role="user"))
         answer = data.get("answer")
         assert answer is not None, f"Sample `{path}` does not contain `answer`"
         return cls(messages=messages, answer=answer, info=dict(path=path))
