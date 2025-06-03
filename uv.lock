@@ -929,14 +929,14 @@ wheels = [
 
 [[package]]
 name = "progrich"
-version = "0.1.0"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b7/e9/c2ac0cc5d58124e73fcbd02f80bda8dbb3e9bfff5ee1c9fe12c22033afa2/progrich-0.1.0.tar.gz", hash = "sha256:e80369f115ca76f7ef63e9d861eddda80e7ef9c57ff8dabe667b2d68b3823439", size = 18014 }
+sdist = { url = "https://files.pythonhosted.org/packages/bb/e0/96a8819242d5b34b1c6354b42bc272d61a3d20eb46aadebb3e4c70bd294b/progrich-0.2.0.tar.gz", hash = "sha256:39db4893a5b20629ba559a1818c87e67a7a933211b9b3919aa52b411401ae9c8", size = 20192 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/8d/ebd15cfcb2d0e573c76fd35415bce3198e850803d104564186e034448938/progrich-0.1.0-py3-none-any.whl", hash = "sha256:b890a75c240287094b01de488d03e781f93e8d32d9424151ed210d7e6a9868ae", size = 19138 },
+    { url = "https://files.pythonhosted.org/packages/35/19/7bd5bff19d042281224091ec571c2d6c0b63c634678ca043d36c64572f66/progrich-0.2.0-py3-none-any.whl", hash = "sha256:ac3613fd9e125f38d381a92ea94a7bf7ee5894bc6b895e9c7b5477f2b129b0b9", size = 22021 },
 ]
 
 [[package]]
