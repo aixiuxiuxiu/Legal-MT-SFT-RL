@@ -145,6 +145,33 @@ uv run train.py --train-data path/to/train.tsv --validation-data path/to/validat
 - `-b` / `--batch-size` determines the number of documents to use per batch.
 - `-r` / `--rank` defines the rank of LoRA (default is 16).
 
+### Reinforcement Learning (RL) with GRPO
+
+> [!NOTE]
+> Enable it with the option `--trainer grpo`
+>
+> You may need to reduce the learning compared to the one used for SFT. For reference, for the RVL-CDIP classification
+> a learning rate of *5e-4* worked well for SFT, whereas for GRPO it needed to be reduced to *2e-5*.
+
+In addition to the regular supervised fine-tuning (SFT), you can also train a model with reinforcement learning (RL),
+specifically with Group Relative Policy Optimisation (GRPO), which was popularised by Deepseek-R1. In this mode, at each
+iteration you sample a given number of outputs from the model (default 8, can be changed with `--num-generations`) and
+calculates the rewards based on certain verifiable reward functions, such as structure of containing
+a `<reasoning>...</reasoning>` tag, as well as a simple check for the correct answer of the classification task.
+
+Due to generating multiple responses from the model for each batch, as well as having to back propagate through all of
+them, this takes much longer to train than SFT. However, you gain possible reasoning traces that can help for
+explainability as well as often being better a generalising to out of distribution data, including unseen classes.
+
+While it may not always be superior, it is certainly worth trying once you have established a solid baseline with SFT.
+As it takes much longer to train, it is recommended to start with SFT in order to ensure the training works as expected.
+
+If you want to continue training a model with GRPO from an SFT checkpoint, you may notice that the model never produces
+the expected reasoning tags. Firstly, make sure to include that in the prompt, but if the model fails to follow that,
+because it was trained to give a straight answer from the SFT, you can force the model to begin with a reasoning tag by
+prefilling the answer. This can be achieved with the option `--prefill <reasoning>`, or whatever you want to prefill the
+answer with.
+
 ### Multi-GPU
 
 Training with multiple GPUs can be achieved by using [`torchrun`][torchrun] when launching the script. Instead of using
