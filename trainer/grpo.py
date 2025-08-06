@@ -12,9 +12,14 @@ from config.grpo import GrpoScale
 from dataset.batch import Batch, GroupedBatch
 from dataset.prefill import prefix_completions_with_prefill
 from dist import sync_dict_values
-from metric.metrics import CLASS_ACCURACY, CLASS_ACCURACY_UNCASED, TRAIN_LOSS, Metric
+from metric.metrics import (
+    TRAIN_LOSS,
+    TRANSLATION_CHRF,
+    Metric,
+)
 from metric.tracker import MetricTracker
-from reward import ClassificationReward, StructureReward
+from reward import StructureReward
+from reward.translation import TranslationReward
 from trainer.utils import set_sampler_epoch
 
 from .base import BaseTrainer
@@ -41,18 +46,26 @@ class GrpoTrainer(BaseTrainer):
         num_generations: int = 8,
         top_p: float = 0.92,
         temperature: float = 0.6,
-        metrics: list[Metric] = [CLASS_ACCURACY, CLASS_ACCURACY_UNCASED, TRAIN_LOSS],
+        metrics: list[Metric] = [TRANSLATION_CHRF, TRAIN_LOSS],
         reward_fns: list = [
             StructureReward(
-                r"<reasoning>\n.*?\n</reasoning>",
-                value=1.0,
-                name="<reasoning>",
+                r"<think>\n.*?\n</think>",
+                value=0.5,
+                name="<think>",
                 max_count=1,
             ),
             StructureReward(
-                r"<answer>\n.*?\n</answer>", value=1.0, name="<answer>", max_count=1
+                r"<translation>\n.*?\n</translation>",
+                value=0.5,
+                name="<translation>",
+                max_count=1,
             ),
-            ClassificationReward(),
+            StructureReward(
+                r"<think>\n.*?\n</think>.*?<translation>\n.*?\n</translation>",
+                value=0.5,
+                name="tag-order",
+            ),
+            TranslationReward(),
         ],
         # Deepseek-R1 used 0.04, but that seems to be too high.
         kl_weight: float = 0.01,
@@ -260,6 +273,8 @@ class GrpoTrainer(BaseTrainer):
             metrics.append(gen_metrics.mean())
             pbar.advance(curr_batch_size * num_replicas)
             spinner.stop()
+            with Spinner(f"Saving model after batch {i}"):
+                self.save_pretrained("current-batch")
         pbar.stop()
 
         mean_metrics = metrics.mean()

@@ -49,3 +49,10 @@ CLASS_ACCURACY_UNCASED = Metric(
     when="validation",
     short_name="Class (uncased)",
 )
+TRANSLATION_CHRF = Metric(
+    name="Translation CHRF",
+    key="translation.chrf",
+    order="max",
+    when="validation",
+    short_name="CHRF",
+)
