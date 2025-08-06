@@ -65,14 +65,18 @@ class InstructCollator:
         ]
         images = [sample.get_images() for sample in samples]
         has_images = any(len(imgs) > 0 for imgs in images)
+        # The images are put into a dict, because some processors don't support the
+        # images argument, which are usually text only models. Hence setting it to
+        # None would not work for those.
+        extra_args = dict(images=images) if has_images else {}
 
         batch = self.processor(
             # That type might be wrong because processor may be different from the
             # tokeniser (as there is no actual base class for the processor to use).
             text=messages,  # pyright: ignore[reportArgumentType]
-            images=images if has_images else None,
             padding=True,
             return_tensors="pt",
+            **extra_args,
         )
 
         labels: torch.Tensor = batch.input_ids.clone()
