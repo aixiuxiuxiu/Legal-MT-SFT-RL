@@ -24,10 +24,10 @@ from metric import (
     Metric,
     MetricTracker,
 )
-from metric.functional import classification_accuracy
+from metric.functional import translation_chrf
 from metric.table import table_from_metrics
 from model.utils import unwrap_model, unwrap_tokeniser
-from reward.classification import extract_answer
+from reward.translation import extract_translation
 from utils import nested_dict
 from utils.hardware import HardwareManager
 
@@ -282,17 +282,10 @@ class BaseTrainer(ABC):
             for input_ids, out in zip(inputs.input_ids, outputs)
         ]
         preds = prefix_completions_with_prefill(preds, prefill=self.prefill)
-        pred_answers = [extract_answer(pred) or pred for pred in preds]
+        pred_answers = [extract_translation(pred) or pred for pred in preds]
         return ValidationOutput(
             metrics=dict(
-                accuracy={
-                    "class": classification_accuracy(
-                        pred_answers, batch.answers, ignore_case=False
-                    ),
-                    "class_uncased": classification_accuracy(
-                        pred_answers, batch.answers, ignore_case=True
-                    ),
-                },
+                translation={"chrf": translation_chrf(pred_answers, batch.answers)},
             ),
             preds=preds,
             target=batch.answers,

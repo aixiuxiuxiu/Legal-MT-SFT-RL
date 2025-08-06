@@ -1,5 +1,5 @@
 from dataset.batch import Batch
-from metric.metrics import CLASS_ACCURACY, CLASS_ACCURACY_UNCASED, TRAIN_LOSS, Metric
+from metric.metrics import TRAIN_LOSS, TRANSLATION_CHRF, Metric
 
 from .base import BaseTrainer
 from .result import TrainOutput
@@ -13,7 +13,7 @@ class InstructTrainer(BaseTrainer):
     def __init__(
         self,
         *args,
-        metrics: list[Metric] = [CLASS_ACCURACY, CLASS_ACCURACY_UNCASED, TRAIN_LOSS],
+        metrics: list[Metric] = [TRANSLATION_CHRF, TRAIN_LOSS],
         **kwargs,
     ):
         super().__init__(metrics=metrics, *args, **kwargs)

@@ -12,11 +12,11 @@ from dataset import InstructDataset
 from dataset.collate import InstructCollator
 from dataset.prefill import prefix_completions_with_prefill
 from metric import MetricTracker
-from metric.functional import classification_accuracy
-from metric.metrics import CLASS_ACCURACY, CLASS_ACCURACY_UNCASED
+from metric.functional import translation_chrf
+from metric.metrics import TRANSLATION_CHRF
 from model.loader import load_model_for_inference
 from model.utils import unwrap_tokeniser
-from reward.classification import extract_answer
+from reward.translation import extract_translation
 
 
 @torch.inference_mode()
@@ -66,7 +66,7 @@ def main() -> None:
     writer = csv.writer(tsv_fd, delimiter="\t")
 
     tokeniser = unwrap_tokeniser(processor)
-    metrics = MetricTracker([CLASS_ACCURACY, CLASS_ACCURACY_UNCASED])
+    metrics = MetricTracker([TRANSLATION_CHRF])
     with ProgressBar("Evaluating", total=len(dataset), persist=True) as pbar:
         for batch in data_loader:
             # The last batch may not be a full batch
@@ -83,17 +83,10 @@ def main() -> None:
                 for input_ids, out in zip(inputs.input_ids, outputs)
             ]
             preds = prefix_completions_with_prefill(preds, prefill=cfg.prefill)
-            pred_answers = [extract_answer(pred) or pred for pred in preds]
+            pred_answers = [extract_translation(pred) or pred for pred in preds]
             metrics.append(
                 dict(
-                    accuracy={
-                        "class": classification_accuracy(
-                            pred_answers, batch.answers, ignore_case=False
-                        ),
-                        "class_uncased": classification_accuracy(
-                            pred_answers, batch.answers, ignore_case=True
-                        ),
-                    },
+                    translation={"chrf": translation_chrf(pred_answers, batch.answers)},
                 )
             )
 
