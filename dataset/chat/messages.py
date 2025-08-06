@@ -13,7 +13,14 @@ class ChatMessageText:
     type: Literal["text"] = "text"
 
     def as_chat(self) -> dict[str, str]:
+        # NOTE(model-specific): Most models accept the content as a dict int the form
+        # of: {"type": "text", "text": "..."}, whereas some others want just the text
+        # directly. Usually, only models that are text only have this problem, even
+        # though some newer ones also switched to dicts even for text only.
+        # For now, if you want to use one of those models, you have to manually swap
+        # the following two lines (and in ChatMessage below too).
         return dict(type=self.type, text=self.text)
+        # return self.text
 
 
 @dataclass
@@ -48,9 +55,16 @@ class ChatMessage:
         )
 
     def as_chat(self) -> dict[str, str | list[dict[str, str]]]:
+        content = [content.as_chat() for content in self.content]
         return dict(
             role=self.role,
-            content=[content.as_chat() for content in self.content],
+            # NOTE(model-specific): Most models accept a list of inputs, mostly when
+            # having more than just text. Other however, only accept a string directly.
+            # Usually, only models that are text only have this problem.
+            # For now, if you want to use one of those models, you have to manually swap
+            # the following two lines (and in ChatMessageText above too).
+            content=content,
+            # content=content[0] if len(content) == 1 else content,
         )
 
     def get_images(self) -> list[Image.Image]:
