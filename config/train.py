@@ -53,6 +53,9 @@ class TrainConfig(ConfigEntry):
     trainer: TrainerKind = choice(
         *typing.get_args(TrainerKind.__value__), default="instruct"
     )
+    # Maximum number of new tokens that are generated before stopping it manually if it
+    # fails to produce and end of sequence token.
+    max_new_tokens: int | None = None
     # Set a different padding token, as sometimes the one defined in the model
     # config may not work correctly, e.g. when it's the <eos> token, the model would
     # just never learn when to stop.
