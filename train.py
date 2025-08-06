@@ -143,7 +143,7 @@ def main() -> None:
     )
     validation_data_loader = DataLoader(
         validation_dataset,
-        batch_size=cfg.hardware.batch_size,
+        batch_size=cfg.hardware.batch_size // 2,
         num_workers=cfg.hardware.calculate_num_workers(),
         shuffle=False,
         sampler=validation_sampler,
