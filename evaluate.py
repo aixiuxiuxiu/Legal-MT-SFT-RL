@@ -101,6 +101,7 @@ def main() -> None:
                 preds, pred_answers, batch.answers, batch.info["path"]
             ):
                 writer.writerow([path.stem, pred_answer, answer, pred])
+            tsv_fd.flush()
             pbar.advance(curr_batch_size)
 
     mean_metrics = metrics.mean()
