@@ -15,20 +15,29 @@ def tokenise_chat(
     processor: PreTrainedTokenizerBase,
     messages: list[ChatMessage],
     add_generation_prompt: bool = False,
+    enable_thinking: bool = False,
 ) -> list[int]:
     tokens = processor.apply_chat_template(
         # HuggingFace got the type annotations wrong of the chat messages.
         [message.as_chat() for message in messages],  # pyright: ignore[reportArgumentType]
         tokenize=True,
         add_generation_prompt=add_generation_prompt,
+        enable_thinking=enable_thinking,
     )
     # Ensure it is a list, because some processors seem to always provide a tensor.
     if isinstance(tokens, torch.Tensor):
         tokens = tokens.tolist()
-    assert isinstance(tokens, list) and isinstance(tokens[0], list), (
-        "Tokenised messages are not a batch of tokens (list[list[int]])"
+    assert isinstance(tokens, list), (
+        "Tokenised messages are not a batch or list of tokens (list[list[int]] | list[int])"
     )
-    return tokens[0]
+    if isinstance(tokens[0], list):
+        # Some tokenisers reutrn a batch of lists of tokens, whereas most tokenisers now
+        # respect the input format.
+        # TODO: Verify that the current transformers version always respects the input,
+        # regardless of the tokeniser used.
+        return tokens[0]
+    else:
+        return tokens  # pyright: ignore[reportReturnType]
 
 
 @dataclass
@@ -48,6 +57,7 @@ class MessageBoundaries:
 
     start: torch.Tensor
     end: torch.Tensor
+    empty_think: torch.Tensor
 
     @classmethod
     def identify_assistant(cls, processor: PreTrainedTokenizerBase) -> Self:
@@ -86,6 +96,16 @@ class MessageBoundaries:
             processor,
             [user_message],
             add_generation_prompt=True,
+            enable_thinking=True,
+        )
+        # Disable thinking as that is required to identify the boundaries, which ensures
+        # that the generation always includes the empty <think></think>, hence it will
+        # be prefilled with it.
+        with_assistant_start_prefill_think = tokenise_chat(
+            processor,
+            [user_message],
+            add_generation_prompt=True,
+            enable_thinking=False,
         )
         with_assistant = tokenise_chat(
             processor,
@@ -97,7 +117,10 @@ class MessageBoundaries:
         # possibilities. There exist ways to create an overload for cases where one
         # argument is set to True.
         start = with_assistant_start[len(system_only) :]
-        end = with_assistant[len(with_assistant_start) :]
+        end = with_assistant[len(with_assistant_start_prefill_think) :]
+        # Just the <think></think> tag that is added prefilled when the thinking should
+        # be disabled. Needed for the sanity check to exclude it from the response.
+        empty_think = with_assistant_start_prefill_think[len(with_assistant_start) :]
 
         tokeniser = unwrap_tokeniser(processor)
 
@@ -109,6 +132,7 @@ class MessageBoundaries:
         instance = cls(
             start=torch.tensor(start),
             end=torch.tensor(end),
+            empty_think=torch.tensor(empty_think),
         )
         # Make sure that the boundaries work correctly with the tokeniser.
         instance._sanity_check(processor)
@@ -133,7 +157,8 @@ class MessageBoundaries:
         mask = self.mask(tokens, include_start=False, include_end=False)
         content_only = tokens[mask]
         decoded_msg = processor.decode(content_only)
-        assert decoded_msg == msg, (
+        decoded_think = processor.decode(self.empty_think)
+        assert decoded_msg == f"{decoded_think}{msg}", (
             f"Boundary check failed, expected extracted message to be {msg!r} "
             f"but got {decoded_msg!r}"
         )
