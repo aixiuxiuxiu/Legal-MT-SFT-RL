@@ -1,3 +1,6 @@
+from typing import Any
+import builtins
+builtins.Any = Any
 import copy
 import os
 from pathlib import Path
