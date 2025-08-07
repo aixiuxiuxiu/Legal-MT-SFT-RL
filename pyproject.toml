@@ -11,7 +11,8 @@ dependencies = [
     "ninja>=1.13.0",
     "peft>=0.14.0",
     "progrich>=0.2.0",
-    "rich>=14.1.0",
+    "pydantic>=1.10.13",
+    "rich>=13.9.4",
     "simple-parsing>=0.1.7",
     "torchvision>=0.23.0",
     "transformers>=4.56.2",
@@ -77,19 +78,19 @@ default-groups = ["dev", "full"]
 
 [tool.uv.sources]
 torch = [
-  { index = "pytorch-cu126", marker = "platform_machine == 'aarch64'" },
+  { index = "pytorch-cu128", marker = "platform_machine == 'aarch64'" },
 ]
 torchvision = [
-  { index = "pytorch-cu126", marker = "platform_machine == 'aarch64'" },
+  { index = "pytorch-cu128", marker = "platform_machine == 'aarch64'" },
 ]
-triton = { git = "https://github.com/triton-lang/triton", subdirectory = "python", branch = "release/3.2.x", marker = "platform_machine == 'aarch64'" }
-unsloth = { git = "https://github.com/unslothai/unsloth.git" }
-unsloth-zoo = { git = "https://github.com/unslothai/unsloth-zoo.git" }
-xformers = { git = "https://github.com/facebookresearch/xformers", tag = "v0.0.29.post3", marker = "platform_machine == 'aarch64'" }
+triton = { git = "https://github.com/triton-lang/triton", subdirectory = "python", tag = "v3.3.0", marker = "platform_machine == 'aarch64'" }
+unsloth = { git = "https://github.com/unslothai/unsloth.git", tag = "July-2025" }
+unsloth-zoo = { git = "https://github.com/unslothai/unsloth-zoo.git", rev = "0da6839bfadbdc238acd9e277eec9f2d54389d5f" }
+xformers = { git = "https://github.com/facebookresearch/xformers", tag = "v0.0.31.post1", marker = "platform_machine == 'aarch64'" }
 
 [[tool.uv.index]]
-name = "pytorch-cu126"
-url = "https://download.pytorch.org/whl/cu126"
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 # This looks very unnecessary and noisy, but because these are built from source on aarch64,

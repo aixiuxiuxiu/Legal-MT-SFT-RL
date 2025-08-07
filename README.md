@@ -46,25 +46,16 @@ While uv allows specifying dependencies based on the architecture, there are som
 source for certain packages. Notably, they require certain build dependencies, which are also dependencies of the
 project itself, and as uv does not prioritise certain dependencies, it would result in a *module not found* error.
 Everything is taken care of by uv, as that was strictly defined in the list of dependencies
-(even the `--no-build-isolation` is configured there), but it just means that you need to do it in multiple steps
+(even the --no-build-isolation is configured there), but it just means that you need to do it in two steps
 
-To achieve this, there are dependency groups with the name `triton` and `full`, that need to be installed
-in order and after the regular dependencies.
-You need to compile triton first, because it requires torch during the build process, however when torch is also
-installed with GPU support (which is configured in `pyproject.toml`), it will not work. Luckily, the custom registry
-only applies to direct dependencies and not their dependencies, which means that triton will use the default torch
-version for arm64, namely the CPU version that doesn't need triton.
+In order to achieve this, there is an optional dependency group with the name compile, that needs to be installed
+after the regular dependencies.
 
 ```sh
 # First install all pre-compiled packages (including build dependencies)
-# By default it would install the `full` dependencies, so we need to disable the default groups.
-uv sync --no-default-groups
+uv sync
 
-# Then install the compile group triton to compile triton
-# Use -v to see the compilation progress, otherwise it's just a spinner.
-uv sync --no-default-groups --group triton -v
-
-# Finally install the full version, to install the remaining dependencies.
+# Afterwards install the compile group
 # Use -v to see the compilation progress, otherwise it's just a spinner.
 # The TORCH_CUDA_ARCH_LIST is needed for xformers who fails to infer the arch correctly.
 TORCH_CUDA_ARCH_LIST="9.0;9.0a;9.0+PTX;9.0a+PTX" uv sync -v
