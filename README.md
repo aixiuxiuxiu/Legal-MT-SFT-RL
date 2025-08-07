@@ -1,4 +1,4 @@
-# Fine-tuning Vision Language Models (VLMs)
+# Fine-tuning Models for Legal Translation
 
 ## Dependencies
 
@@ -21,7 +21,7 @@ Once installed, you can manage the dependencies through uv as follows:
 
 ```sh
 # Installs all the dependencies and automatically creates the venv
-uv sync
+uv sync --group final -v
 ```
 
 In order to run a binary from an installed package in the venv without activating it, you can use `uv run`. The same
@@ -35,6 +35,7 @@ uv run train.py --help
 # Run the ruff binary (installed as a dev dependency) to lint files
 uv run ruff check
 ```
+
 
 ### ARM + CUDA Builds (GH200)
 
@@ -57,60 +58,15 @@ uv sync
 
 # Afterwards install the compile group
 # Use -v to see the compilation progress, otherwise it's just a spinner.
-uv sync --extra compile -v
-```
+uv sync --group triton -v
 
+uv sync --group final -v
+```
 Note: There are two issues with `xformers`, firstly, it tries to infer `TORCH_CUDA_ARCH_LIST` if it was not set, but
 expects it to only contain numbers, whereas the Hopper GPUs also have `9.0a`, so converting that to a number fails. This
 can be avoided, by setting the environment variable for the build. Secondly, some of the compilations time out for some
 reason, which can be fixed by running it again.
 
-Use `TORCH_CUDA_ARCH_LIST="9.0;9.0a;9.0+PTX;9.0a+PTX" uv sync --extra compile -v` to compile it correctly, and if
-necessary multiple times.
-
-### Bitsandbytes
-
-Bitsandbytes is one annoying exception, because if you install it from GitHub, it won't actually compile the C extension
-and you are left with a broken package since it can't find the object file. Usually, the Python packages with
-extensions, will include the build process in their setup, but bitsandbytes doesn't (it is addressed with the
-[PR #1512 - Automatically call CMake as part of PEP 517 build](https://github.com/bitsandbytes-foundation/bitsandbytes/pull/1512)).
-Until that is merged, the workaround is to build bitsandbytes manually for it work properly.
-
-```sh
-# Create a build directory for the manual dependencies
-mkdir build
-
-# Clone the repo and checkout the tag you want, here 0.45.2, which was tested to work.
-git clone https://github.com/bitsandbytes-foundation/bitsandbytes.git
-cd bitsandbytes
-git checkout 0.45.2
-
-# Build the extension
-cmake -DCOMPUTE_BACKEND=cuda -S .
-make
-
-# Copy the object file to match the CUDA version of PyTorch
-# Difference in build vs. PyTorch CUDA versions are irrelevant, but it looks for the file with the exact version.
-cp bitsandbytes/libbitsandbytes_cuda124.so bitsandbytes/libbitsandbytes_cuda126.so
-```
-
-If you build the extension with CUDA 12.4 in your path (i.e. `nvcc` and the libraries) but use PyTorch with CUDA 12.6,
-you have to copy the created object file as it will look for the specific version identifier. The minor version
-difference no effect but to make sure it can load the correct file, you have to copy it.
-
-Then afterwards, you need to change the bitsandbytes source in `pyproject.toml` to point to the one you just built
-above.
-
-In the section `[tool.uv.sources]` replace the existing `bitsandbytes = { git = ... }` with:
-
-```toml
-bitsandbytes = { path = "build/bitsandbytes", marker =  "platform_machine == 'aarch64'" }
-```
-
-If you already installed it before switching it out with the custom build, you will have to run
-`uv sync --extra compile --reinstall` , so that it updates the lock file and the venv correctly.
-
-**DO NOT COMMIT THOSE CHANGES**.
 
 ## Faster Model Downloads
 

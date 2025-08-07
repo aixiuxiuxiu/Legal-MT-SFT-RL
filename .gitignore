@@ -1,4 +1,5 @@
 /log
+/data
 /output
 /results
 /wandb
@@ -16,3 +17,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# running job
+*.sh
