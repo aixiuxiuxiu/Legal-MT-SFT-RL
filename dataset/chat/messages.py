@@ -19,8 +19,8 @@ class ChatMessageText:
         # though some newer ones also switched to dicts even for text only.
         # For now, if you want to use one of those models, you have to manually swap
         # the following two lines (and in ChatMessage below too).
-        return dict(type=self.type, text=self.text)
-        # return self.text
+        #return dict(type=self.type, text=self.text)
+        return self.text
 
 
 @dataclass
@@ -63,8 +63,8 @@ class ChatMessage:
             # Usually, only models that are text only have this problem.
             # For now, if you want to use one of those models, you have to manually swap
             # the following two lines (and in ChatMessageText above too).
-            content=content,
-            # content=content[0] if len(content) == 1 else content,
+            #content=content,
+            content=content[0] if len(content) == 1 else content,
         )
 
     def get_images(self) -> list[Image.Image]:

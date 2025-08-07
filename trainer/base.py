@@ -30,7 +30,7 @@ from model.utils import unwrap_model, unwrap_tokeniser
 from reward.translation import extract_translation
 from utils import nested_dict
 from utils.hardware import HardwareManager
-
+from loguru import logger
 from .result import (
     Example,
     TrainOutput,
@@ -171,6 +171,9 @@ class BaseTrainer(ABC):
             metrics.append(output.metrics)
             losses.append(output.loss.item())
             spinner.update(
+                f"Current Batch: {batch.data['input_ids'].size()} • Loss {losses[-1]} • Avg loss {torch.mean(torch.tensor(losses, dtype=torch.float))}"
+            )
+            logger.info(
                 f"Current Batch: {batch.data['input_ids'].size()} • Loss {losses[-1]} • Avg loss {torch.mean(torch.tensor(losses, dtype=torch.float))}"
             )
 

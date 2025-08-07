@@ -17,6 +17,7 @@ from metric.metrics import (
     TRANSLATION_CHRF,
     Metric,
 )
+from loguru import logger
 from metric.tracker import MetricTracker
 from reward import StructureReward
 from reward.translation import TranslationReward
@@ -203,6 +204,9 @@ class GrpoTrainer(BaseTrainer):
             spinner.update(
                 f"Generated completions [{i + 1} / {num}] • {completion_strs[0]}"
             )
+            logger.info(
+                f"Generated completions [{i + 1} / {num}] • {completion_strs[0]}"
+            )
         spinner.stop()
         return GroupedBatch.from_generations(
             batches=generated_batches,
@@ -254,6 +258,8 @@ class GrpoTrainer(BaseTrainer):
             gen_metrics = MetricTracker(self.metrics, when="train")
             j = 0
             spinner = Spinner("Waiting for results of first batch of generations...")
+            logger.info(("Waiting for results of first batch of generations..."))
+
             spinner.start()
             for gen_batch in generated.iter_batches(
                 self.reward_fns, scale=reward_scale
@@ -265,6 +271,12 @@ class GrpoTrainer(BaseTrainer):
                 gen_metrics.append(output.metrics)
                 losses.append(output.loss.item())
                 spinner.update(
+                    f"Current Batch {i} [Generation: {j} / {self.num_generations}]: "
+                    f"{gen_batch.data['input_ids'].size()} • "  # pyright: ignore[reportAttributeAccessIssue]
+                    f"Loss {losses[-1]} • "
+                    f"Avg loss {torch.mean(torch.tensor(losses, dtype=torch.float))}"
+                )
+                logger.info(
                     f"Current Batch {i} [Generation: {j} / {self.num_generations}]: "
                     f"{gen_batch.data['input_ids'].size()} • "  # pyright: ignore[reportAttributeAccessIssue]
                     f"Loss {losses[-1]} • "
