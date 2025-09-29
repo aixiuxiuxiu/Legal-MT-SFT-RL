@@ -9,20 +9,17 @@ dependencies = [
     "bitsandbytes>=0.46.1",
     "cmake>=4.0.3",
     "hf-transfer>=0.1.9",
-    "ninja>=1.11.1.4",
+    "ninja>=1.13.0",
     "peft>=0.14.0",
     "progrich>=0.2.0",
     "rich>=13.9.4",
     "simple-parsing>=0.1.7",
-    "torchmetrics>=1.7.4",
-    "torchvision>=0.22.0",
-    "transformers==4.52.4",
+    "torchvision>=0.21.0",
+    "transformers>=4.49.0",
     "trl>=0.15.2",
     "unsloth",
-    "loguru",
     "wandb>=0.19.6",
 ]
-
 
 [dependency-groups]
 dev = [
@@ -33,16 +30,18 @@ dev = [
     "ruff>=0.9.6",
 ]
 triton = [
-    "triton==3.3.0",
+  "triton==3.2.0",
 ]
-
-final = [
-    "triton==3.3.0",
-    "xformers==0.0.31.post1",
-    "unsloth-zoo",
-    "torch==2.7.0",
+full = [
+  {include-group = "triton"},
+  "xformers==0.0.29.post3",
+  "unsloth-zoo",
+  # This is here and not above, because on arm64 in order to install compile triton you need PyTorch, but PyTorch itself
+  # depends on triton, hence it wouldn't work. But if PyTorch is not specified when compiling triton, it uses the CPU
+  # only version, which does not depend on triton. Sounds odd, but the custom registry only applies to direct
+  # dependencies, not their dependencies.
+  "torch>=2.6.0",
 ]
-
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
@@ -75,6 +74,7 @@ extend-select = ["I"]
 
 [tool.uv]
 no-build-isolation-package = ["triton", "xformers"]
+default-groups = ["dev", "full"]
 
 [tool.uv.sources]
 # Are you serious... This doesn't compile the extension.
