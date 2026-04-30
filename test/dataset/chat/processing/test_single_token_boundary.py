@@ -14,6 +14,7 @@ class SingleTokenBoundary(TokenBoundary):
     BOUNDARIES = MessageBoundaries(
         start=torch.tensor([SINGLE_TOKEN["start"]]),
         end=torch.tensor([SINGLE_TOKEN["end"]]),
+        empty_think=torch.tensor([]),
     )
 
 

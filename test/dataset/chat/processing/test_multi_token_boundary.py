@@ -9,15 +9,13 @@ from .boundary import TokenBoundary
 
 MULTI_TOKEN = dict(start=[0, 1, 2], end=[3, 4, 5])
 
-MULTI_TOKEN_BOUNDARIES = MessageBoundaries(
-    start=torch.tensor(MULTI_TOKEN["start"]), end=torch.tensor(MULTI_TOKEN["end"])
-)
-
 
 @dataclass
 class MultiTokenBoundary(TokenBoundary):
     BOUNDARIES = MessageBoundaries(
-        start=torch.tensor(MULTI_TOKEN["start"]), end=torch.tensor(MULTI_TOKEN["end"])
+        start=torch.tensor(MULTI_TOKEN["start"]),
+        end=torch.tensor(MULTI_TOKEN["end"]),
+        empty_think=torch.tensor([]),
     )
 
     @classmethod
