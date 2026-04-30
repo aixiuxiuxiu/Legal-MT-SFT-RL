@@ -113,16 +113,34 @@ class MessageBoundaries:
             add_generation_prompt=False,
         )
 
-        # HuggingFace is really annoying with types that are just unions of all
-        # possibilities. There exist ways to create an overload for cases where one
-        # argument is set to True.
-        start = with_assistant_start[len(system_only) :]
-        end = with_assistant[len(with_assistant_start_prefill_think) :]
-        # Just the <think></think> tag that is added prefilled when the thinking should
-        # be disabled. Needed for the sanity check to exclude it from the response.
-        empty_think = with_assistant_start_prefill_think[len(with_assistant_start) :]
-
         tokeniser = unwrap_tokeniser(processor)
+        # Check for an opening <think> in the generation prompt.
+        pos_think = cls._find_sequence_matches(
+            torch.tensor(with_assistant_start),
+            torch.tensor(tokeniser.encode("<think>")),
+        )
+        # If there is a match for <think>, it will always be included in the generation
+        # prompt, hence it needs to be removed in order to extract the content with the
+        # thinking tag..
+        if pos_think.numel() > 0:
+            # The start of the last match for the <think> tag.
+            # From: num_matches x 2 (start, end) x 1
+            pos_think_start = int(pos_think[-1, 0, 0])
+            # Only keep up to the think token.
+            # This is for the annoying cases where the generation prompt starts with
+            # a forced <think> tag (e.g. Qwen 3.5). Otherwise there is no way to get the
+            # start of assistant without any thinking tag.
+            start = with_assistant_start[len(system_only) : pos_think_start]
+            empty_think = with_assistant_start_prefill_think[pos_think_start:]
+        else:
+            start = with_assistant_start[len(system_only) :]
+            # Just the <think></think> tag that is added prefilled when the thinking
+            # should be disabled. Needed for the sanity check to exclude it from the
+            # response.
+            empty_think = with_assistant_start_prefill_think[
+                len(with_assistant_start) :
+            ]
+        end = with_assistant[len(with_assistant_start_prefill_think) :]
 
         # Remove the trailing whitespace of the end, as there is often a new line at the
         # end, that would only be there if there were another message, as the generation
@@ -163,8 +181,9 @@ class MessageBoundaries:
             f"but got {decoded_msg!r}"
         )
 
+    @staticmethod
     def _find_sequence_matches(
-        self, input: torch.Tensor, sequence: torch.Tensor
+        input: torch.Tensor, sequence: torch.Tensor
     ) -> torch.Tensor:
         """
         Args:
