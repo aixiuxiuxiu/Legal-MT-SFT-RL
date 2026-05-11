@@ -6,24 +6,23 @@ from torchmetrics.text import CHRFScore
 
 from .reward import RewardFn
 
-REGEX_TRANSLATION = re.compile(
-    r"<translation>\s*(.*?)\s*</translation>", re.DOTALL | re.MULTILINE
-)
+REGEX_THINK = re.compile(r"<think>\s*(.*?)\s*</think>", re.DOTALL | re.MULTILINE)
 
-TranslationMetric = Literal["chrf", "chrf++"]
+# For now, the metrics are the same as the translation quality.
+ThinkingMetric = Literal["chrf", "chrf++"]
 
 
-def extract_translation(completion: str) -> str | None:
-    matches = REGEX_TRANSLATION.search(completion)
+def extract_think(completion: str) -> str | None:
+    matches = REGEX_THINK.search(completion)
     return matches.group(1) if matches else None
 
 
-class TranslationReward(RewardFn):
-    key = "translation-reward"
+class ThinkingReward(RewardFn):
+    key = "thinking-reward"
 
     def __init__(
         self,
-        metric: TranslationMetric = "chrf",
+        metric: ThinkingMetric = "chrf",
         name: str | None = None,
         weight: float = 1.0,
     ):
@@ -36,7 +35,7 @@ class TranslationReward(RewardFn):
                 self.metric = CHRFScore(n_word_order=2)
             case other:  # pyright: ignore[reportUnnecessaryComparison]
                 options = " | ".join(
-                    [repr(m) for m in typing.get_args(TranslationMetric.__value__)]
+                    [repr(m) for m in typing.get_args(ThinkingMetric.__value__)]
                 )
                 raise ValueError(
                     f"metric={other!r} not supported, choose one of {options}"
@@ -46,6 +45,8 @@ class TranslationReward(RewardFn):
     def calculate(
         self, completion: str, answer: str, thinking: str | None = None
     ) -> float:
-        extracted = extract_translation(completion) or completion
-        score = self.metric([extracted], [answer])
+        extracted = extract_think(completion)
+        if extracted is None:
+            return 0.0
+        score = self.metric([extracted], [thinking])
         return float(score)

@@ -24,7 +24,9 @@ class ClassificationReward(RewardFn):
         self.value = value
 
     @override
-    def calculate(self, completion: str, answer: str) -> float:
+    def calculate(
+        self, completion: str, answer: str, thinking: str | None = None
+    ) -> float:
         if completion == answer:
             return self.value
         extracted = extract_answer(completion)

@@ -97,6 +97,7 @@ class InstructSample:
 
     messages: list[ChatMessage]
     answer: str
+    thinking: str | None
     info: dict = field(default_factory=lambda: {})
 
     @classmethod
@@ -127,7 +128,12 @@ class InstructSample:
             messages.append(ChatMessage.from_inputs([image, question], role="user"))
         answer = data.get("answer")
         assert answer is not None, f"Sample `{path}` does not contain `answer`"
-        return cls(messages=messages, answer=answer, info=dict(path=path))
+        return cls(
+            messages=messages,
+            answer=answer,
+            thinking=data.get("thinking"),
+            info=dict(path=path),
+        )
 
     def as_chat(
         self,
