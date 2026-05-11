@@ -8,6 +8,7 @@ from progrich import ProgressBar
 from simple_parsing import choice, field
 
 from config.entry import ConfigEntry
+from reward.thinking import extract_think
 
 LANGUAGE_CODES = {
     "fr": "French",
@@ -88,6 +89,7 @@ def main():
                                 else PROMPT_SIMPLE,
                             ),
                             answer=data["tgt_sent"],
+                            thinking=extract_think(data["api_response"]),
                         ),
                         out_fd,
                         indent=2,

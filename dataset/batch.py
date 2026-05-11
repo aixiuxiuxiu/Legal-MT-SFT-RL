@@ -11,6 +11,7 @@ from reward import RewardFn
 class Batch:
     data: BatchEncoding
     answers: list[str]
+    thinking: list[str | None]
     info: dict[str, list[Any]] = field(default_factory=lambda: {})
 
 
@@ -23,6 +24,7 @@ class GroupedBatch:
     data: list[BatchEncoding]
     completions: list[list[str]]
     answers: list[str]
+    thinking: list[str | None]
     prompt_len: int
     info: dict[str, list[Any]] = field(default_factory=lambda: {})
 
@@ -49,6 +51,7 @@ class GroupedBatch:
             completions=completions,
             # Use the same from the reference batch, as they are shared across batches.
             answers=reference.answers,
+            thinking=reference.thinking,
             prompt_len=reference.data.input_ids.size(1),
             info=reference.info,
         )
@@ -90,12 +93,14 @@ class GroupedBatch:
         advantages = []
         # This iterates over the samples per batch. Meaning that the first value
         # contains all generated num_completions of that sample.
-        for group_completions, answer in zip(self.completions_by_group(), self.answers):
+        for group_completions, answer, thinking in zip(
+            self.completions_by_group(), self.answers, self.thinking
+        ):
             # Rewards for each completion in the group, with each reward function.
             # Dimension: num_completions x num_fns
             rewards_matrix = torch.tensor(
                 [
-                    [fn(completion, answer) for fn in reward_fns]
+                    [fn(completion, answer, thinking=thinking) for fn in reward_fns]
                     for completion in group_completions
                 ]
             )
@@ -146,6 +151,7 @@ class GroupedBatch:
             batch = Batch(
                 data=data,
                 answers=self.answers,
+                thinking=self.thinking,
                 info=dict(
                     **self.info,
                     prompt_len=[self.prompt_len] * batch_size,

@@ -28,7 +28,9 @@ class StructureReward(RewardFn):
         self.count_penalty = count_penalty
 
     @override
-    def calculate(self, completion: str, answer: str) -> float:
+    def calculate(
+        self, completion: str, answer: str, thinking: str | None = None
+    ) -> float:
         if self.max_count:
             match len(self.regex.findall(completion)):
                 case 0:

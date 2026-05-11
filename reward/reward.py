@@ -10,8 +10,12 @@ class RewardFn(ABC):
         self.weight = weight
 
     @abstractmethod
-    def calculate(self, completion: str, answer: str) -> float:
+    def calculate(
+        self, completion: str, answer: str, thinking: str | None = None
+    ) -> float:
         raise NotImplementedError("calculate method is not implemented")
 
-    def __call__(self, completion: str, answer: str) -> float:
-        return self.calculate(completion, answer) * self.weight
+    def __call__(
+        self, completion: str, answer: str, thinking: str | None = None
+    ) -> float:
+        return self.calculate(completion, answer, thinking=thinking) * self.weight

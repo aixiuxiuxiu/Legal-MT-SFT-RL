@@ -104,5 +104,6 @@ class InstructCollator:
         return Batch(
             data=batch,
             answers=[sample.answer for sample in samples],
+            thinking=[sample.thinking for sample in samples],
             info=info,
         )
