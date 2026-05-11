@@ -83,7 +83,9 @@ def main():
                         dict(
                             **create_prompt(
                                 data,
-                                prompt_template=PROMPT_GRPO,
+                                prompt_template=PROMPT_GRPO
+                                if cfg.prompt == "grpo"
+                                else PROMPT_SIMPLE,
                             ),
                             answer=data["tgt_sent"],
                         ),
