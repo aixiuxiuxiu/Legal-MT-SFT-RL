@@ -46,7 +46,7 @@ class ThinkingReward(RewardFn):
         self, completion: str, answer: str, thinking: str | None = None
     ) -> float:
         extracted = extract_think(completion)
-        if extracted is None:
+        if extracted is None or thinking is None:
             return 0.0
         score = self.metric([extracted], [thinking])
         return float(score)
