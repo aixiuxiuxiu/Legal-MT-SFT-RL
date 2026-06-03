@@ -105,5 +105,8 @@ class InstructCollator:
             data=batch,
             answers=[sample.answer for sample in samples],
             thinking=[sample.thinking for sample in samples],
+            think_start_offset=self.assistant_boundaries.think_start_offset
+            if self.assistant_boundaries
+            else 0,
             info=info,
         )

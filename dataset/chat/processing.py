@@ -58,6 +58,7 @@ class MessageBoundaries:
     start: torch.Tensor
     end: torch.Tensor
     empty_think: torch.Tensor
+    think_start_offset: int = 0
 
     @classmethod
     def identify_assistant(cls, processor: PreTrainedTokenizerBase) -> Self:
@@ -132,6 +133,9 @@ class MessageBoundaries:
             # start of assistant without any thinking tag.
             start = with_assistant_start[len(system_only) : pos_think_start]
             empty_think = with_assistant_start_prefill_think[pos_think_start:]
+            # The offset is used to get the start of <think>, as that is forced in the
+            # input.
+            think_start_offset = len(with_assistant_start) - pos_think_start
         else:
             start = with_assistant_start[len(system_only) :]
             # Just the <think></think> tag that is added prefilled when the thinking
@@ -140,6 +144,7 @@ class MessageBoundaries:
             empty_think = with_assistant_start_prefill_think[
                 len(with_assistant_start) :
             ]
+            think_start_offset = 0
         end = with_assistant[len(with_assistant_start_prefill_think) :]
 
         # Remove the trailing whitespace of the end, as there is often a new line at the
@@ -151,6 +156,7 @@ class MessageBoundaries:
             start=torch.tensor(start),
             end=torch.tensor(end),
             empty_think=torch.tensor(empty_think),
+            think_start_offset=think_start_offset,
         )
         # Make sure that the boundaries work correctly with the tokeniser.
         instance._sanity_check(processor)

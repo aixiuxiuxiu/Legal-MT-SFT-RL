@@ -12,6 +12,9 @@ class Batch:
     data: BatchEncoding
     answers: list[str]
     thinking: list[str | None]
+    # Some tokenisers force the <think> in the generation prompt, but it is required to
+    # be part of the output, such that the structure can be evaluated correctly.
+    think_start_offset: int
     info: dict[str, list[Any]] = field(default_factory=lambda: {})
 
 
@@ -26,6 +29,7 @@ class GroupedBatch:
     answers: list[str]
     thinking: list[str | None]
     prompt_len: int
+    think_start_offset: int
     info: dict[str, list[Any]] = field(default_factory=lambda: {})
 
     @classmethod
@@ -53,6 +57,7 @@ class GroupedBatch:
             answers=reference.answers,
             thinking=reference.thinking,
             prompt_len=reference.data.input_ids.size(1),
+            think_start_offset=reference.think_start_offset,
             info=reference.info,
         )
 
@@ -152,6 +157,7 @@ class GroupedBatch:
                 data=data,
                 answers=self.answers,
                 thinking=self.thinking,
+                think_start_offset=self.think_start_offset,
                 info=dict(
                     **self.info,
                     prompt_len=[self.prompt_len] * batch_size,

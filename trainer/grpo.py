@@ -197,9 +197,10 @@ class GrpoTrainer(BaseTrainer):
             new_data["labels"] = None
             # Convert the output to text, as most rewards will be calculated from the
             # text.
+            # Keep the <think> as part of the output, not the prompt.
             completion_strs = [
                 tokeniser.decode(comp, skip_special_tokens=True)
-                for comp in completion_ids
+                for comp in outputs[:, prompt_len - batch.think_start_offset :]
             ]
             completion_strs = prefix_completions_with_prefill(
                 completion_strs, prefill=self.prefill
@@ -324,7 +325,7 @@ class GrpoTrainer(BaseTrainer):
         inputs = batch.data.to(self.hardware.device)
         advantages = torch.tensor(batch.info["advantages"], device=self.hardware.device)
         # All samples have the same prompt_len, so just use the first one.
-        prompt_len = batch.info["prompt_len"][0]
+        prompt_len = batch.info["prompt_len"][0] - batch.think_start_offset
         with torch.no_grad(), unwrapped_model.disable_adapter():  # pyright: ignore[reportCallIssue]
             # Log probs of the reference model, i.e. the base model, which can be
             # achieved by simply disabling the LoRA adapters.
