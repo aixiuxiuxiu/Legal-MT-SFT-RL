@@ -24,6 +24,7 @@ class InstructCollator:
         assistant_only: bool = True,
         include_answer: bool = True,
         prefill: str | None = None,
+        enable_thinking: bool = True,
     ):
         """
         Args:
@@ -48,6 +49,7 @@ class InstructCollator:
         )
         self.include_answer = include_answer
         self.prefill = prefill
+        self.enable_thinking = enable_thinking
 
     def __call__(self, samples: list[InstructSample]) -> Batch:
         messages = [
@@ -56,10 +58,12 @@ class InstructCollator:
                 sample.as_chat(
                     include_answer=self.include_answer,  # pyright: ignore[reportArgumentType]
                     prefill=self.prefill,
+                    enable_thinking=self.enable_thinking,
                 ),
                 tokenize=False,
                 add_generation_prompt=not self.include_answer and self.prefill is None,
                 continue_final_message=self.prefill is not None,
+                enable_thinking=self.enable_thinking,
             )
             for sample in samples
         ]

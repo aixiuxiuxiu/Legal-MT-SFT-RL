@@ -60,6 +60,8 @@ class TrainConfig(ConfigEntry):
     # config may not work correctly, e.g. when it's the <eos> token, the model would
     # just never learn when to stop.
     pad_token: str | None = None
+    # Disable thinking. This passed `enable_thinking=False` to the model/processor.
+    no_thinking: bool = field(action="store_true")
     # Number of epochs to train
     num_epochs: int = field(default=10, alias="-n")
     # Name of the experiment for the logging and saved model. If not specified, the
