@@ -139,12 +139,16 @@ class InstructSample:
         self,
         include_answer: bool = True,
         prefill: str | None = None,
+        enable_thinking: bool = False,
     ) -> list[dict[str, str | list[dict[str, str]]]]:
         if include_answer and prefill is not None:
             raise ValueError("Cannot use `prefill` together with `include_answer=True`")
         messages = [msg.as_chat() for msg in self.messages]
         if include_answer:
-            answer = ChatMessage.from_inputs([self.answer], role="assistant")
+            answer_str = f"<translation>{self.answer}</translation>"
+            if enable_thinking:
+                answer_str = f"<think>\n{self.thinking or ''}\n</think>\n\n{answer_str}"
+            answer = ChatMessage.from_inputs([answer_str], role="assistant")
             messages.append(answer.as_chat())
         if prefill:
             start_of_answer = ChatMessage.from_inputs([prefill], role="assistant")

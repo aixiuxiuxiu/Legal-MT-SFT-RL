@@ -95,6 +95,7 @@ def main() -> None:
         # With GRPO, the answer should not be included in the inputs, as they will be
         # generated and checked afterwards.
         include_answer=not cfg.trainer == "grpo",
+        enable_thinking=not cfg.no_thinking,
         # Only use the prefill for the training if GRPO is used, as this generates the
         # responsens, otherwise the answer is already given in full.
         prefill=cfg.prefill if cfg.trainer == "grpo" else None,

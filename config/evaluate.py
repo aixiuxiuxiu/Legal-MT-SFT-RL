@@ -39,6 +39,8 @@ class EvaluateConfig(ConfigEntry):
     # Maximum number of new tokens that are generated before stopping it manually if it
     # fails to produce and end of sequence token.
     max_new_tokens: int | None = None
+    # Disable thinking. This passed `enable_thinking=False` to the model/processor.
+    no_thinking: bool = field(action="store_true")
 
     image: ImageConfig = field(default_factory=ImageConfig)
     hardware: HardwareConfig = field(default_factory=HardwareConfig)
