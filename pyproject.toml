@@ -21,6 +21,7 @@ dependencies = [
     "wandb>=0.22.0",
 ]
 
+
 [dependency-groups]
 dev = [
     "basedpyright>=1.27.0",
