@@ -89,7 +89,7 @@ def main():
                                 else PROMPT_SIMPLE,
                             ),
                             answer=data["tgt_sent"],
-                            thinking=extract_think(data["api_response"]),
+                            thinking=extract_think(data.get("api_response", "")),
                         ),
                         out_fd,
                         indent=2,
