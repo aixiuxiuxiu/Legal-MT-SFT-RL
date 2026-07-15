@@ -202,7 +202,40 @@ Example prompts with a single choice (add additional prompts to get the variatio
 }
 ```
 
+### Converting SwiLTra-Bench JSONL Dataset
+
+The SwiLTra-Bench is available as JSONL files, but the training expects a different format as outlined above. This can
+be done with the `convert_jsonl_to_prompts.py` script:
+
+```sh
+# Convert the train.jsonl to the GRPO prompts.
+uv run convert_jsonl_to_prompts.py -i path/to/train.jsonl -o data/converted/ -p grpo
+```
+
+The `-p` / `--prompt` option defines which prompt style should be used.
+
+Note: The prompt is duplicated for each samples, because the languages (source and target) change based on the sample,
+and it was more convenient to include it directly in the prompt rather than having to load it on demand.
+
+## Inference
+
+[vLLM][vllm] is used for faster inference, but the LoRA adapters are not supported, hence they need to be merged into
+the full weights before they can be given to vLLM.
+
+```sh
+# Merge the LoRA adapters into the weights.
+uv run convert_vllm.py -m path/to/trained/checkpoint -o checkpoints/vllm/
+```
+
+Afterwards the converted checkpoint can be passed to the `evaluate_vllm.py` script:
+
+```sh
+uv run evaluate_vllm.py --data data/converted/test-grpo.tsv --model checkpoints/vllm/qwen3.5-9b-grpo -o results/ -b 1024 --max-new-tokens 4096
+```
+
+
 [hf-transfer]: https://github.com/huggingface/hf_transfer
 [torchrun]: https://pytorch.org/docs/stable/elastic/run.html
 [uv]: https://github.com/astral-sh/uv
 [uv-install]: https://docs.astral.sh/uv/getting-started/installation/
+[vllm]: https://github.com/vllm-project/vllm
