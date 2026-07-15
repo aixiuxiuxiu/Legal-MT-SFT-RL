@@ -289,8 +289,7 @@ class GrpoTrainer(BaseTrainer):
             metrics.append(gen_metrics.mean())
             pbar.advance(curr_batch_size * num_replicas)
             spinner.stop()
-            with Spinner(f"Saving model after batch {i}"):
-                self.save_pretrained("current-batch")
+            self._maybe_save_after(int(pbar.current))
         pbar.stop()
 
         mean_metrics = metrics.mean()

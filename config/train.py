@@ -64,6 +64,9 @@ class TrainConfig(ConfigEntry):
     no_thinking: bool = field(action="store_true")
     # Number of epochs to train
     num_epochs: int = field(default=10, alias="-n")
+    # Save a checkpoint after every X samples have been passed. This takes the batch
+    # size into account and saves a checkpoint every time a multiple of X is surpassed.
+    save_after: int | None = None
     # Name of the experiment for the logging and saved model. If not specified, the
     # current date and time will be used.
     name: str | None = None

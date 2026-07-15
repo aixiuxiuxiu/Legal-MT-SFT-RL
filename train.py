@@ -217,6 +217,7 @@ def main() -> None:
                 max_new_tokens=cfg.max_new_tokens,
                 max_grad_norm=0.3,
                 num_epochs=cfg.num_epochs,
+                save_after=cfg.save_after,
                 prefill=cfg.prefill,
             )
         case "grpo":
@@ -233,6 +234,7 @@ def main() -> None:
                 max_new_tokens=cfg.max_new_tokens,
                 max_grad_norm=0.3,
                 num_epochs=cfg.num_epochs,
+                save_after=cfg.save_after,
                 num_generations=cfg.grpo.num_generations,
                 scale_rewards=cfg.grpo.scale_rewards,
                 clip_range=cfg.grpo.clip_advantage,
