@@ -5,6 +5,7 @@
 /wandb
 # Stupid generated unsloth files
 /unsloth_compiled_cache
+/checkpoints
 
 # Python-generated files
 __pycache__/
