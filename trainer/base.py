@@ -74,6 +74,7 @@ class BaseTrainer(ABC):
         lr_scheduler: BaseLrScheduler | None = None,
         max_grad_norm: float = 1.0,
         num_epochs: int = 10,
+        save_after: int | None = None,
         max_new_tokens: int | None = None,
         ignore_index: int = -100,
         prefill: str | None = None,
@@ -88,6 +89,7 @@ class BaseTrainer(ABC):
         self.lr_scheduler = lr_scheduler
         self.max_grad_norm = max_grad_norm
         self.num_epochs = num_epochs
+        self.save_after = save_after
         self.max_new_tokens = max_new_tokens
         self.ignore_index = ignore_index
         self.metrics = metrics
@@ -178,6 +180,7 @@ class BaseTrainer(ABC):
             )
 
             pbar.advance(curr_batch_size * num_replicas)
+            self._maybe_save_after(int(pbar.current))
         spinner.stop()
         pbar.stop()
 
@@ -305,6 +308,12 @@ class BaseTrainer(ABC):
             model.save_pretrained(path, safe_serialization=True)  # pyright: ignore[reportCallIssue]
             self.processor.save_pretrained(path)
         return path
+
+    def _maybe_save_after(self, samples_seen: int):
+        if self.save_after is None:
+            return
+        if samples_seen % self.save_after == 0:
+            self.save_pretrained(f"after-{samples_seen:0>5}")
 
     def to(self, device: torch.device) -> Self:
         self.hardware.to(device)
