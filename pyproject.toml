@@ -5,18 +5,17 @@ description = "Fine-tuning Vision Language Models (VLMs)"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "accelerate>=1.10.1",
+    "accelerate>=1.13.0",
     "bitsandbytes>=0.47.0",
     "hf-transfer>=0.1.9",
     "ninja>=1.13.0",
-    "peft>=0.14.0",
+    "peft>=0.19.1",
     "progrich>=0.2.0",
-    "pydantic>=1.10.13",
-    "rich>=13.9.4",
-    "simple-parsing>=0.1.7",
-    "torchvision>=0.23.0",
-    "transformers>=4.56.2",
-    "trl>=0.23.0",
+    "rich>=15.0.0",
+    "simple-parsing>=0.1.8",
+    "torchmetrics>=1.9.0",
+    "torchvision>=0.25.0",
+    "transformers>=5.5.0",
     "unsloth",
     "wandb>=0.22.0",
 ]
@@ -31,17 +30,17 @@ dev = [
     "ruff>=0.9.6",
 ]
 triton = [
-  "triton==3.2.0",
+  "triton>=3.6.0",
 ]
 full = [
   {include-group = "triton"},
-  "xformers==0.0.29.post3",
+  "xformers>=0.0.35",
   "unsloth-zoo",
   # This is here and not above, because on arm64 in order to install compile triton you need PyTorch, but PyTorch itself
   # depends on triton, hence it wouldn't work. But if PyTorch is not specified when compiling triton, it uses the CPU
   # only version, which does not depend on triton. Sounds odd, but the custom registry only applies to direct
   # dependencies, not their dependencies.
-  "torch>=2.6.0",
+  "torch>=2.10.0",
 ]
 
 [tool.basedpyright]
@@ -90,8 +89,8 @@ unsloth-zoo = { git = "https://github.com/unslothai/unsloth-zoo.git", rev = "0da
 xformers = { git = "https://github.com/facebookresearch/xformers", tag = "v0.0.31.post1", marker = "platform_machine == 'aarch64'" }
 
 [[tool.uv.index]]
-name = "pytorch-cu128"
-url = "https://download.pytorch.org/whl/cu128"
+name = "pytorch-cu129"
+url = "https://download.pytorch.org/whl/cu129"
 explicit = true
 
 # This looks very unnecessary and noisy, but because these are built from source on aarch64,
