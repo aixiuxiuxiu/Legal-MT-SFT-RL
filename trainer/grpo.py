@@ -20,7 +20,6 @@ from metric.metrics import (
 from loguru import logger
 from metric.tracker import MetricTracker
 from reward import StructureReward
-from reward.thinking import ThinkingReward
 from reward.translation import TranslationReward
 from trainer.utils import set_sampler_epoch
 
@@ -69,7 +68,6 @@ class GrpoTrainer(BaseTrainer):
                 name="tag-order",
             ),
             TranslationReward(),
-            ThinkingReward(),
         ],
         # Deepseek-R1 used 0.04, but that seems to be too high.
         kl_weight: float = 0.01,
