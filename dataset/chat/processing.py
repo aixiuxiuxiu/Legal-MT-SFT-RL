@@ -118,7 +118,7 @@ class MessageBoundaries:
         # Check for an opening <think> in the generation prompt.
         pos_think = cls._find_sequence_matches(
             torch.tensor(with_assistant_start),
-            torch.tensor(tokeniser.encode("<think>")),
+            torch.tensor(tokeniser.encode("<think>", add_special_tokens=False)),
         )
         # If there is a match for <think>, it will always be included in the generation
         # prompt, hence it needs to be removed in order to extract the content with the
