@@ -17,7 +17,8 @@ dependencies = [
     "torchvision>=0.25.0",
     "transformers>=5.5.0",
     "unsloth",
-    "wandb>=0.22.0",
+    "vllm>=0.20.0",
+    "wandb>=0.26.0",
 ]
 
 
@@ -74,19 +75,20 @@ extend-select = ["I"]
 
 [tool.uv]
 no-build-isolation-package = ["triton", "xformers"]
-default-groups = ["dev", "full"]
+# For some baffling reason, unsloth has transformers<5.5.0. But that is completely useless,
+# since some newer models are only availablein transformers 5.5.0.
+# This overwrites that dependency requirement.
+override-dependencies = ["transformers>5.5.0"]
 
 [tool.uv.sources]
-torch = [
-  { index = "pytorch-cu128", marker = "platform_machine == 'aarch64'" },
-]
-torchvision = [
-  { index = "pytorch-cu128", marker = "platform_machine == 'aarch64'" },
-]
-triton = { git = "https://github.com/triton-lang/triton", subdirectory = "python", tag = "v3.3.0", marker = "platform_machine == 'aarch64'" }
-unsloth = { git = "https://github.com/unslothai/unsloth.git", tag = "July-2025" }
-unsloth-zoo = { git = "https://github.com/unslothai/unsloth-zoo.git", rev = "0da6839bfadbdc238acd9e277eec9f2d54389d5f" }
-xformers = { git = "https://github.com/facebookresearch/xformers", tag = "v0.0.31.post1", marker = "platform_machine == 'aarch64'" }
+# torch = [
+#   { index = "pytorch-cu129"},
+# ]
+# torchvision = [
+#   { index = "pytorch-cu129"},
+# ]
+unsloth = { git = "https://github.com/unslothai/unsloth.git" }
+unsloth-zoo = { git = "https://github.com/unslothai/unsloth-zoo.git" }
 
 [[tool.uv.index]]
 name = "pytorch-cu129"
