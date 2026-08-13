@@ -8,6 +8,7 @@ MODELS = [
     "unsloth/gemma-3-27b-it",
     "unsloth/Qwen3-VL-8B-Instruct",
     "unsloth/Qwen3.5-9B",
+    "unsloth/gemma-4-12b-it",
 ]
 
 

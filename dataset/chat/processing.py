@@ -92,6 +92,8 @@ class MessageBoundaries:
             processor,
             [user_message],
             add_generation_prompt=False,
+            # This needs to be True for Gemma 4 as the thinking is in the system prompt.
+            enable_thinking=True,
         )
         with_assistant_start = tokenise_chat(
             processor,
@@ -112,6 +114,7 @@ class MessageBoundaries:
             processor,
             [user_message, assistant_message],
             add_generation_prompt=False,
+            enable_thinking=False,
         )
 
         tokeniser = unwrap_tokeniser(processor)
@@ -138,14 +141,46 @@ class MessageBoundaries:
             think_start_offset = len(with_assistant_start) - pos_think_start
         else:
             start = with_assistant_start[len(system_only) :]
+            # NOTE: This juggling around for the prefilled think is required because of
+            # Gemma 4 changing the system prompt between thinking/no-thinking, therefore
+            # they don't align anymore and the start tokens just need to be matched to
+            # get the rest.
+            pos_start = cls._find_sequence_matches(
+                torch.tensor(with_assistant_start_prefill_think), torch.tensor(start)
+            )
+            assert pos_start.numel() > 0, (
+                f"Start ({tokeniser.decode(start)!r}) was not found in generation "
+                "prompt with thinking: "
+                f"{tokeniser.decode(with_assistant_start_prefill_think)!r}"
+            )
+            # The end of the last match for the start tokens, i.e. when the actual
+            # assistant message starts after the tags.
+            # From: num_matches x 2 (start, end) x 1
+            pos_start_end = int(pos_start[-1, 1, 0])
             # Just the <think></think> tag that is added prefilled when the thinking
             # should be disabled. Needed for the sanity check to exclude it from the
             # response.
-            empty_think = with_assistant_start_prefill_think[
-                len(with_assistant_start) :
-            ]
-            think_start_offset = 0
-        end = with_assistant[len(with_assistant_start_prefill_think) :]
+            empty_think = with_assistant_start_prefill_think[pos_start_end:]
+            think_start_offset = len(empty_think)
+
+        pos_start_assistant = cls._find_sequence_matches(
+            torch.tensor(with_assistant), torch.tensor(start)
+        )
+        assert pos_start_assistant.numel() > 0, (
+            f"Start ({tokeniser.decode(start)!r}) was not found in the full "
+            f"turn assistant message: {tokeniser.decode(with_assistant)!r}"
+        )
+        # NOTE: Same issue caused by Gemma (see note above)
+        # After the end of the start of the assistant
+        # From: num_matches x 2 (start, end) x 1
+        end = with_assistant[int(pos_start_assistant[-1, 1, 0]) :]
+        # If there is an emtpy think, use everything afterwards.
+        if len(empty_think) > 0:
+            pos_think_assistant = cls._find_sequence_matches(
+                torch.tensor(end), torch.tensor(empty_think)
+            )
+            if pos_think_assistant.numel() > 0:
+                end = end[int(pos_think_assistant[-1, 1, 0]) :]
 
         # Remove the trailing whitespace of the end, as there is often a new line at the
         # end, that would only be there if there were another message, as the generation
@@ -182,8 +217,10 @@ class MessageBoundaries:
         content_only = tokens[mask]
         decoded_msg = processor.decode(content_only)
         decoded_think = processor.decode(self.empty_think)
-        assert decoded_msg == f"{decoded_think}{msg}", (
-            f"Boundary check failed, expected extracted message to be {msg!r} "
+        msg_with_think = f"{decoded_think}{msg}"
+        assert decoded_msg == msg_with_think or decoded_msg == msg, (
+            f"Boundary check failed, expected extracted message to be either "
+            f"{msg!r} (no think) or {msg_with_think!r} (empty think) "
             f"but got {decoded_msg!r}"
         )
 
