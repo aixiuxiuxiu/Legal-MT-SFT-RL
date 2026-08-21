@@ -6,9 +6,10 @@ from .reward import RewardFn
 REGEX_ANSWER = re.compile(r"<answer>\s*(.*?)\s*</answer>", re.DOTALL | re.MULTILINE)
 
 
+# Extracts the final answer, i.e. the last <answer></answer> tag.
 def extract_answer(completion: str) -> str | None:
-    matches = REGEX_ANSWER.search(completion)
-    return matches.group(1) if matches else None
+    matches = REGEX_ANSWER.findall(completion)
+    return None if len(matches) == 0 else matches[-1]
 
 
 class ClassificationReward(RewardFn):

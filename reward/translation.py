@@ -13,9 +13,11 @@ REGEX_TRANSLATION = re.compile(
 TranslationMetric = Literal["chrf", "chrf++"]
 
 
+# Extracts the final translation, i.e. the last <translation></translation> tag.
+# TODO: Handle partial and nested tags.
 def extract_translation(completion: str) -> str | None:
-    matches = REGEX_TRANSLATION.search(completion)
-    return matches.group(1) if matches else None
+    matches = REGEX_TRANSLATION.findall(completion)
+    return None if len(matches) == 0 else matches[-1]
 
 
 class TranslationReward(RewardFn):
