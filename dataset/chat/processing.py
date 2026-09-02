@@ -17,13 +17,17 @@ def tokenise_chat(
     add_generation_prompt: bool = False,
     enable_thinking: bool = False,
 ) -> list[int]:
-    tokens = processor.apply_chat_template(
+    chat_str = processor.apply_chat_template(
         # HuggingFace got the type annotations wrong of the chat messages.
         [message.as_chat() for message in messages],  # pyright: ignore[reportArgumentType]
-        tokenize=True,
+        # Do not tokenise it because some tokenisers (specifically Apertus) seem to
+        # return a batch rather than just the input_ids. Hence, tokenise it below.
+        # This also more closely matches what is used during the actual training.
+        tokenize=False,
         add_generation_prompt=add_generation_prompt,
         enable_thinking=enable_thinking,
     )
+    tokens = processor(text=[chat_str]).input_ids
     # Ensure it is a list, because some processors seem to always provide a tensor.
     if isinstance(tokens, torch.Tensor):
         tokens = tokens.tolist()
