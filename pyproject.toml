@@ -15,10 +15,13 @@ dependencies = [
     "simple-parsing>=0.1.8",
     "torchmetrics>=1.9.0",
     "torchvision>=0.25.0",
-    "transformers>=5.5.0",
+    # TODO: Remove the <5.15.0 once vLLM fixes the Gemma 4 issue with transformers 5.15.0
+    "transformers>=5.5.0,<5.15.0",
     "unsloth",
     "vllm>=0.20.0",
     "wandb>=0.26.0",
+    # For some reason higher versions don't have the necessary wheels.
+    "xgrammar==0.2.3",
 ]
 
 
@@ -76,9 +79,12 @@ extend-select = ["I"]
 [tool.uv]
 no-build-isolation-package = ["triton", "xformers"]
 # For some baffling reason, unsloth has transformers<5.5.0. But that is completely useless,
-# since some newer models are only availablein transformers 5.5.0.
+# since some newer models are only available in transformers 5.5.0.
+# And apparently also torch < 2.13.0, so doesn't support the latest PyTorch version, even though they are no real
+# breaking changes anymore in PyTorch.
 # This overwrites that dependency requirement.
-override-dependencies = ["transformers>5.5.0"]
+# TODO: See above for transformers <5.15.0
+override-dependencies = ["transformers>5.5.0,<5.15.0", "torch>=2.13.0"]
 
 [tool.uv.sources]
 # torch = [
